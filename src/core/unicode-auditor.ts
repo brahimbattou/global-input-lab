@@ -143,6 +143,65 @@ export class UnicodeAuditor {
   }
 
   /**
+   * Evaluates whether an invisible character at position `pos` is strictly embedded
+   * inside a token that reconstructs into a prompt-injection keyword when stripped of formatting.
+   * Prevents false positives where the separator merely follows a complete keyword or separates words.
+   */
+  private checkEmbeddedKeywordSmuggling(chars: string[], pos: number): { isEmbedded: boolean; keyword?: string; token?: string } {
+    const isDelimiter = (ch: string) => /[\s.,;:!?'"()\[\]{}/\\<>+=_~@#$%^&*|\-]/.test(ch);
+
+    let start = pos;
+    while (start > 0 && !isDelimiter(chars[start - 1])) {
+      start--;
+    }
+
+    let end = pos;
+    while (end < chars.length - 1 && !isDelimiter(chars[end + 1])) {
+      end++;
+    }
+
+    const tokenChars = chars.slice(start, end + 1);
+    const relPos = pos - start;
+
+    let cleanToken = '';
+    const cleanToOrigIndex: number[] = [];
+
+    for (let i = 0; i < tokenChars.length; i++) {
+      const ch = tokenChars[i];
+      const cp = ch.codePointAt(0);
+      if (cp && ZERO_WIDTH_POINTS[cp]) {
+        continue;
+      }
+      cleanToOrigIndex.push(i);
+      cleanToken += ch;
+    }
+
+    const lowerClean = cleanToken.toLowerCase();
+
+    for (const kw of PROMPT_INJECTION_KEYWORDS) {
+      let kwIdx = lowerClean.indexOf(kw);
+      while (kwIdx !== -1) {
+        const kwEndIdx = kwIdx + kw.length - 1;
+        const origKwStart = cleanToOrigIndex[kwIdx];
+        const origKwEnd = cleanToOrigIndex[kwEndIdx];
+
+        // Character is strictly embedded inside this keyword if the keyword starts BEFORE relPos and ends AFTER relPos.
+        if (origKwStart < relPos && origKwEnd > relPos) {
+          return {
+            isEmbedded: true,
+            keyword: kw,
+            token: tokenChars.join(''),
+          };
+        }
+
+        kwIdx = lowerClean.indexOf(kw, kwIdx + 1);
+      }
+    }
+
+    return { isEmbedded: false };
+  }
+
+  /**
    * Audits a string for anomalies, invisible smuggling, and security risks.
    * Completely non-destructive: original input is never mutated.
    */
@@ -171,6 +230,8 @@ export class UnicodeAuditor {
         const item = ZERO_WIDTH_POINTS[cp];
         let severity: Severity = item.defaultSeverity;
         let isLinguisticContext = false;
+        let desc = item.desc;
+        let recommendation = 'Review zero-width character to ensure it does not bypass filters or conceal intent.';
 
         // Contextual analysis for U+200B (Zero Width Space):
         // In Thai, Khmer, Lao, Myanmar: legitimate word boundary marker
@@ -178,11 +239,21 @@ export class UnicodeAuditor {
           if (this.isScriptWordBreakContext(prevChar, nextChar)) {
             severity = 'info';
             isLinguisticContext = true;
+            desc = 'Standard script word boundary marker in writing system without whitespace (e.g. Thai/Khmer/Lao/Myanmar).';
+            recommendation = 'Preserve this character to maintain valid word segmentation and line breaking.';
           } else {
-            const lowerText = text.toLowerCase();
-            const isPromptKeyword = PROMPT_INJECTION_KEYWORDS.some(kw => lowerText.includes(kw));
-            severity = isPromptKeyword ? 'critical' : 'warning';
-            isLinguisticContext = false;
+            const smuggling = this.checkEmbeddedKeywordSmuggling(chars, pos);
+            if (smuggling.isEmbedded && smuggling.keyword) {
+              severity = 'critical';
+              isLinguisticContext = false;
+              desc = `Critical zero-width smuggling: Character is embedded inside keyword token '${smuggling.keyword}'. Likely attempt to evade keyword moderation or safety filters.`;
+              recommendation = 'Strip zero-width characters and review payload for adversarial intent.';
+            } else {
+              severity = 'warning';
+              isLinguisticContext = false;
+              desc = `Orphaned zero-width space in non-scriptio-continua text. Placed at boundary or between tokens; not embedded inside a keyword.`;
+              recommendation = 'Review zero-width space to verify whether it represents accidental formatting or separator obfuscation.';
+            }
           }
         }
 
@@ -191,9 +262,19 @@ export class UnicodeAuditor {
           if (this.isComplexScriptContext(prevChar, nextChar)) {
             severity = 'info';
             isLinguisticContext = true;
+            desc = `Standard linguistic formatting character (${item.tag}). Retain to preserve text integrity.`;
+            recommendation = 'Preserve this character to maintain valid orthography.';
           } else {
-            severity = 'warning';
-            isLinguisticContext = false;
+            const smuggling = this.checkEmbeddedKeywordSmuggling(chars, pos);
+            if (smuggling.isEmbedded && smuggling.keyword) {
+              severity = 'critical';
+              isLinguisticContext = false;
+              desc = `Critical zero-width non-joiner smuggling embedded inside keyword token '${smuggling.keyword}'.`;
+              recommendation = 'Strip zero-width characters and review payload for adversarial intent.';
+            } else {
+              severity = 'warning';
+              isLinguisticContext = false;
+            }
           }
         }
 
@@ -202,9 +283,19 @@ export class UnicodeAuditor {
           if (this.isEmojiContext(prevChar, nextChar) || this.isComplexScriptContext(prevChar, nextChar)) {
             severity = 'info';
             isLinguisticContext = true;
+            desc = `Standard emoji or linguistic joiner (${item.tag}). Retain to preserve emoji sequences or ligatures.`;
+            recommendation = 'Preserve this character to maintain valid emoji ligatures.';
           } else {
-            severity = 'warning';
-            isLinguisticContext = false;
+            const smuggling = this.checkEmbeddedKeywordSmuggling(chars, pos);
+            if (smuggling.isEmbedded && smuggling.keyword) {
+              severity = 'critical';
+              isLinguisticContext = false;
+              desc = `Critical zero-width joiner smuggling embedded inside keyword token '${smuggling.keyword}'.`;
+              recommendation = 'Strip zero-width characters and review payload for adversarial intent.';
+            } else {
+              severity = 'warning';
+              isLinguisticContext = false;
+            }
           }
         }
 
@@ -212,37 +303,28 @@ export class UnicodeAuditor {
         if (cp === 0x200e || cp === 0x200f) {
           severity = 'info';
           isLinguisticContext = true;
+          desc = `Standard bidirectional mark (${item.tag}) used to order neutral characters (UAX #9).`;
+          recommendation = 'Preserve directional marks to maintain intended visual order.';
         }
 
         // Soft Hyphen (U+00AD), Word Joiner (U+2060), and Math Operators (U+2061..U+2064):
         if (cp === 0x00ad || cp === 0x2060 || (cp >= 0x2061 && cp <= 0x2064)) {
           severity = 'info';
           isLinguisticContext = true;
-        }
-
-        if (severity !== 'info') {
-          hasZeroWidth = true;
-        }
-
-        let desc = item.desc;
-        let recommendation = 'Review zero-width character to ensure it does not bypass filters or conceal intent.';
-        if (isLinguisticContext) {
-          if (cp === 0x200b) {
-            desc = 'Standard script word boundary marker in writing system without whitespace (e.g. Thai/Khmer/Lao/Myanmar).';
-            recommendation = 'Preserve this character to maintain valid word segmentation and line breaking.';
-          } else if (cp === 0x00ad) {
+          if (cp === 0x00ad) {
             desc = 'Discretionary soft hyphen used for typographical line breaking.';
             recommendation = 'Preserve soft hyphen to support responsive document typesetting.';
           } else if (cp >= 0x2061 && cp <= 0x2064) {
             desc = 'Standard invisible mathematical operator (MathML/Unicode mathematics).';
             recommendation = 'Preserve operator to maintain semantic mathematical formula representation.';
           } else {
-            desc = `Standard linguistic or emoji formatting character (${item.tag}). Retain to preserve text integrity.`;
-            recommendation = 'Preserve this character to maintain valid orthography or emoji ligatures.';
+            desc = 'Zero-width word joiner (U+2060) preventing line breaks without spacing.';
+            recommendation = 'Preserve word joiner unless word-break normalization is requested.';
           }
-        } else if (severity === 'critical') {
-          desc = `Critical zero-width smuggling detected inside keyword token. Likely attempt to bypass keyword moderation or safety filters.`;
-          recommendation = 'Strip zero-width characters and review payload for adversarial intent.';
+        }
+
+        if (severity !== 'info') {
+          hasZeroWidth = true;
         }
 
         anomalies.push({

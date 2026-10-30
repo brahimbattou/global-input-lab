@@ -88,7 +88,7 @@ GlobalInputLab fills a distinct operational niche with demonstrable technical ca
 1. **Active Probing with Byte-Level Round-Trip Verification:** Rather than validating syntax or running static regexes, GlobalInputLab executes live probes against HTTP endpoints and shell commands, comparing input and output byte-for-byte and pinpointing the exact character offset of any mutation.
 2. **Rigorous Transport vs. Integrity Distinction:** Avoids false positives by separating network success (`HTTP 200 OK`) from payload preservation. If an endpoint returns 200 without echoing verifiable data, the result is explicitly flagged as **`INCONCLUSIVE`** rather than falsely marked as passing.
 3. **Genuinely Non-Destructive Auditing by Default:** Unlike naive regex filters that delete legitimate characters, GlobalInputLab preserves valid linguistic formatting across scripts—including Thai/Khmer/Lao/Myanmar word boundaries (`U+200B`), Tamil/Devanagari combining marks, Persian ZWNJ (`U+200C`), complex emoji ZWJ sequences (`U+200D`), soft hyphens (`U+00AD`), and mathematical operators (`U+2061`..`U+2064`).
-4. **Curated Standards-Based Security Diagnostics:** Implements a curated security subset aligned with Unicode Technical Standard #39 (v15.1.0) for cross-script and mixed-script confusable detection, alongside UAX #9 bidirectional override auditing (CVE-2021-42574) and UAX #15 normalization checks.
+4. **Curated Standards-Based Security Diagnostics:** Implements a curated security subset aligned with Unicode Technical Standard #39 (v18.0.0) for cross-script and mixed-script confusable detection, alongside UAX #9 bidirectional override auditing (CVE-2021-42574) and UAX #15 normalization checks.
 5. **Zero-Dependency Native Architecture:** Runs on standard Node.js (>=18) using native `Intl.Segmenter`, `fetch`, and `node:test`, generating JUnit XML and Markdown summaries for seamless CI/CD integration with 0 npm supply-chain dependencies.
 
 ---
@@ -97,7 +97,7 @@ GlobalInputLab fills a distinct operational niche with demonstrable technical ca
 
 To maintain scientific honesty, the following constraints of the current implementation must be acknowledged:
 
-1. **Curated UTS #39 Subset, Not Full Conformance:** GlobalInputLab implements a curated security subset of high-frequency Latin/Cyrillic/Greek/Cherokee/Armenian confusables and mathematical alphanumeric bold glyphs. It does **not** embed the complete ~10,000+ entry Unicode UTS #39 `confusables.txt` table in memory, as doing so would inflate package size beyond the zero-dependency, lightweight footprint goal.
+1. **Curated UTS #39 Subset, Not Full Conformance:** GlobalInputLab implements a curated security subset of high-frequency Latin/Cyrillic/Greek/Cherokee/Armenian confusables and mathematical alphanumeric bold glyphs grounded in UTS #39 v18.0.0 security data (`https://www.unicode.org/Public/18.0.0/security/confusables.txt`). It does **not** embed the complete ~10,000+ entry Unicode UTS #39 `confusables.txt` table in memory, as doing so would inflate package size beyond the zero-dependency, lightweight footprint goal.
 2. **Text Input & API Testing, Not Neural Model Weights:** GlobalInputLab tests how application servers, serializers, proxies, and API endpoints handle Unicode strings. It does **not** inspect neural network weight activations or internal tokenizer vocabularies directly unless an explicit API wrapper is provided by the user.
 3. **Heuristic Context Detection Limitations:** The linguistic context detector uses Unicode script extensions and adjacent character lookahead/lookbehind. While effective for common typography (e.g. Thai word boundaries, Persian prefixes, complex emojis), atypical mixed-script styling or fragmented text fragments may require manual policy tuning via CLI flags.
 4. **Single-Node Execution:** Command runner and HTTP prober are designed for targeted test suites and CI integration; they are not distributed load-testing engines.
@@ -115,7 +115,8 @@ The following assumptions remain subject to ongoing validation through community
 
 ## 7. Standards References
 
-- Unicode Consortium. *UTS #39: Unicode Security Mechanisms* (Version 15.1.0). [https://www.unicode.org/reports/tr39/](https://www.unicode.org/reports/tr39/)
+- Unicode Consortium. *UTS #39: Unicode Security Mechanisms* (Version 18.0.0). [https://www.unicode.org/reports/tr39/](https://www.unicode.org/reports/tr39/)
+- Unicode Consortium. *Unicode 18.0.0 Security Data*. [https://www.unicode.org/Public/18.0.0/security/](https://www.unicode.org/Public/18.0.0/security/)
 - Unicode Consortium. *UAX #9: Unicode Bidirectional Algorithm*. [https://www.unicode.org/reports/tr9/](https://www.unicode.org/reports/tr9/)
 - Unicode Consortium. *UAX #15: Unicode Normalization Forms*. [https://www.unicode.org/reports/tr15/](https://www.unicode.org/reports/tr15/)
 - Unicode Consortium. *UAX #29: Unicode Text Segmentation*. [https://www.unicode.org/reports/tr29/](https://www.unicode.org/reports/tr29/)

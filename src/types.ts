@@ -75,7 +75,7 @@ export interface HomoglyphMatch {
 export interface HomoglyphReport {
   input: string;
   hasHomoglyphs: boolean;
-  standardsVersion: string; // e.g. 'UTS #39 v15.1.0'
+  standardsVersion: string; // e.g. 'UTS #39 v18.0.0 (Curated Security Subset)'
   datasetScope: 'curated-security-subset';
   matches: HomoglyphMatch[];
   normalizedLatinPreview: string;
@@ -225,6 +225,7 @@ export interface TestRunOptions {
   categories?: TestCategory[];
   timeoutMs?: number;
   maxResponseBytes?: number; // Limit maximum response body size (default: 10MB)
+  maxStderrBytes?: number; // Limit maximum stderr size for command runner (default: maxResponseBytes or 10MB)
   outputFraming?: OutputFramingPolicy; // Default: 'exact' (no silent whitespace trimming)
   headers?: Record<string, string>;
   method?: 'GET' | 'POST' | 'PUT';

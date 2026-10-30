@@ -9,6 +9,7 @@
 import http from 'http';
 import https from 'https';
 import { spawn } from 'child_process';
+import { StringDecoder } from 'string_decoder';
 import { RoundTripVerifier } from '../core/round-trip.js';
 import { TestSuiteManager } from '../core/test-suites.js';
 import { OutputFramingPolicy, SingleTestResult, TestCase, TestOutcome, TestRunOptions, TestRunReport } from '../types.js';
@@ -231,12 +232,13 @@ export class TestRunner {
           timeout: options.timeoutMs || 5000,
         },
         (res: http.IncomingMessage) => {
+          const bodyChunks: Buffer[] = [];
+          const decoder = new StringDecoder('utf8');
           let responseBody = '';
           let receivedBytes = 0;
-          res.setEncoding('utf8');
 
-          res.on('data', (chunk: string) => {
-            receivedBytes += Buffer.byteLength(chunk, 'utf8');
+          res.on('data', (chunk: Buffer) => {
+            receivedBytes += chunk.length;
             if (receivedBytes > maxBytes) {
               req.destroy();
               return safeResolve({
@@ -250,10 +252,12 @@ export class TestRunner {
                 error: `HTTP response exceeded maximum permitted size of ${maxBytes} bytes.`,
               });
             }
-            responseBody += chunk;
+            bodyChunks.push(chunk);
+            responseBody += decoder.write(chunk);
           });
 
           res.on('end', () => {
+            responseBody += decoder.end();
             const durationMs = Date.now() - start;
             const statusCode = res.statusCode || 0;
             const transportOk = statusCode >= 200 && statusCode < 300;
@@ -433,10 +437,17 @@ export class TestRunner {
       };
     }
 
+    const maxStderrBytes = options.maxStderrBytes || options.maxResponseBytes || 10 * 1024 * 1024;
+
     return new Promise<SingleTestResult>((resolve) => {
+      const stdoutChunks: Buffer[] = [];
+      const stderrChunks: Buffer[] = [];
+      const stdoutDecoder = new StringDecoder('utf8');
+      const stderrDecoder = new StringDecoder('utf8');
       let stdout = '';
       let stderr = '';
       let stdoutBytes = 0;
+      let stderrBytes = 0;
       let timedOut = false;
       let isResolved = false;
 
@@ -476,11 +487,26 @@ export class TestRunner {
             error: `Process output exceeded maximum permitted size of ${maxBytes} bytes.`,
           });
         }
-        stdout += data.toString('utf8');
+        stdoutChunks.push(data);
+        stdout += stdoutDecoder.write(data);
       });
 
       child.stderr.on('data', (data: Buffer) => {
-        stderr += data.toString('utf8');
+        stderrBytes += data.length;
+        if (stderrBytes > maxStderrBytes) {
+          child.kill('SIGKILL');
+          return safeResolve({
+            testCase: tc,
+            outcome: 'failed',
+            passed: false,
+            transportOk: false,
+            dataPreserved: false,
+            durationMs: Date.now() - start,
+            error: `Process stderr exceeded maximum permitted size of ${maxStderrBytes} bytes.`,
+          });
+        }
+        stderrChunks.push(data);
+        stderr += stderrDecoder.write(data);
       });
 
       child.on('error', (err) => {
@@ -496,6 +522,8 @@ export class TestRunner {
       });
 
       child.on('close', (code, signal) => {
+        stdout += stdoutDecoder.end();
+        stderr += stderrDecoder.end();
         const durationMs = Date.now() - start;
 
         if (timedOut || signal === 'SIGTERM') {

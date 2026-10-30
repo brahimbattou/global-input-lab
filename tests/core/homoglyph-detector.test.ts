@@ -95,3 +95,28 @@ test('HomoglyphDetector - canonicalizes confusable strings to Latin', () => {
   const cleaned = detector.canonicalize(confusable);
   assert.equal(cleaned, 'paypal');
 });
+
+test('HomoglyphDetector - isolated confusable does not inherit mixed-script flag from earlier token (pаypal а)', () => {
+  const detector = new HomoglyphDetector();
+
+  // 'pаypal а': 'pаypal' has embedded Cyrillic 'а' (U+0430) -> mixed-script
+  // 'а' is standalone Cyrillic 'а' -> single-script / isolated
+  const text = 'p\u0430ypal \u0430';
+  const report = detector.detect(text);
+
+  assert.equal(report.hasHomoglyphs, true);
+  assert.equal(report.matches.length, 2);
+
+  const [firstMatch, secondMatch] = report.matches;
+
+  // First 'а' at index 1 is embedded in Latin word 'pаypal'
+  assert.equal(firstMatch.position, 1);
+  assert.equal(firstMatch.isMixedScriptWord, true);
+  assert.ok(firstMatch.riskDescription.includes('Critical Mixed-Script Spoofing'));
+
+  // Second 'а' at index 7 is isolated (after space)
+  assert.equal(secondMatch.position, 7);
+  assert.equal(secondMatch.isMixedScriptWord, false);
+  assert.ok(secondMatch.riskDescription.includes('Cross-Script Confusable'));
+});
+

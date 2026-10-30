@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary
 
-Packaging integrity was audited and verified via `npm pack --dry-run` following the second pre-release engineering remediation.
+Packaging integrity was audited and verified via `npm pack --dry-run` following the third and final engineering remediation wave.
 
 **Key Verification Invariants:**
 1. **Clean Distribution Scope:** Only compiled build artifacts (`dist/`), documentation (`README.md`), the license (`LICENSE`), and manifest (`package.json`) are packed into the tarball.
@@ -29,7 +29,7 @@ Execution of `npm pack --dry-run` yielded the following verified metadata:
 npm notice package: global-input-lab@0.1.0
 npm notice Tarball Contents
 npm notice 1.1kB LICENSE
-npm notice 12.9kB README.md
+npm notice 14.3kB README.md
 npm notice 919B dist/cli/formatters.d.ts
 npm notice 485B dist/cli/formatters.d.ts.map
 npm notice 8.4kB dist/cli/formatters.js
@@ -40,16 +40,16 @@ npm notice 12.5kB dist/cli/index.js
 npm notice 9.4kB dist/cli/index.js.map
 npm notice 1.9kB dist/cli/runner.d.ts
 npm notice 775B dist/cli/runner.d.ts.map
-npm notice 22.0kB dist/cli/runner.js
-npm notice 15.0kB dist/cli/runner.js.map
+npm notice 23.3kB dist/cli/runner.js
+npm notice 16.0kB dist/cli/runner.js.map
 npm notice 1.5kB dist/core/boundary-inspector.d.ts
 npm notice 913B dist/core/boundary-inspector.d.ts.map
 npm notice 4.9kB dist/core/boundary-inspector.js
 npm notice 3.3kB dist/core/boundary-inspector.js.map
-npm notice 1.3kB dist/core/homoglyph-detector.d.ts
-npm notice 481B dist/core/homoglyph-detector.d.ts.map
-npm notice 10.8kB dist/core/homoglyph-detector.js
-npm notice 9.8kB dist/core/homoglyph-detector.js.map
+npm notice 1.5kB dist/core/homoglyph-detector.d.ts
+npm notice 483B dist/core/homoglyph-detector.d.ts.map
+npm notice 12.0kB dist/core/homoglyph-detector.js
+npm notice 10.7kB dist/core/homoglyph-detector.js.map
 npm notice 780B dist/core/round-trip.d.ts
 npm notice 383B dist/core/round-trip.d.ts.map
 npm notice 3.6kB dist/core/round-trip.js
@@ -66,15 +66,15 @@ npm notice 750B dist/core/test-suites.d.ts
 npm notice 460B dist/core/test-suites.d.ts.map
 npm notice 14.3kB dist/core/test-suites.js
 npm notice 6.9kB dist/core/test-suites.js.map
-npm notice 1.3kB dist/core/unicode-auditor.d.ts
-npm notice 542B dist/core/unicode-auditor.d.ts.map
-npm notice 19.5kB dist/core/unicode-auditor.js
-npm notice 12.4kB dist/core/unicode-auditor.js.map
+npm notice 1.7kB dist/core/unicode-auditor.d.ts
+npm notice 579B dist/core/unicode-auditor.d.ts.map
+npm notice 23.7kB dist/core/unicode-auditor.js
+npm notice 14.8kB dist/core/unicode-auditor.js.map
 npm notice 2.4kB dist/index.d.ts
 npm notice 1.3kB dist/index.d.ts.map
 npm notice 4.9kB dist/index.js
 npm notice 3.6kB dist/index.js.map
-npm notice 6.4kB dist/types.d.ts
+npm notice 6.5kB dist/types.d.ts
 npm notice 4.5kB dist/types.d.ts.map
 npm notice 194B dist/types.js
 npm notice 114B dist/types.js.map
@@ -83,9 +83,10 @@ npm notice Tarball Details
 npm notice name: global-input-lab
 npm notice version: 0.1.0
 npm notice filename: global-input-lab-0.1.0.tgz
-npm notice package size: 54.3 kB
-npm notice unpacked size: 242.2 kB
-npm notice shasum: 0cb3f9c5c96b99b72a61a32a734e013c552003a2
+npm notice package size: 56.9 kB
+npm notice unpacked size: 255.3 kB
+npm notice shasum: e2e5e479deb6f22c9cd9b0ba8c05ea3ca31291be
+npm notice integrity: sha512-soFdXjar5AHWv[...]PaUjegV7Wcu9w==
 npm notice total files: 51
 ```
 
@@ -98,26 +99,20 @@ npm notice total files: 51
 - **Version:** `0.1.0` (Semantic Versioning 2.0.0 aligned)
 - **Module Format:** `"type": "module"` (ESM native)
 - **TypeScript Types:** Bundled declaration files (`dist/index.d.ts`, `dist/types.d.ts`, etc.)
-- **Binary Executables:**
-  - `global-input-lab`: `dist/cli/index.js`
-  - `gil`: `dist/cli/index.js`
-- **Node.js Engines:** `>=18.0.0` (Required for native `Intl.Segmenter`, `fetch`, and `crypto`)
+- **Binary Executable:** `"bin": { "global-input-lab": "dist/cli/index.js", "gil": "dist/cli/index.js" }`
+- **Files Allowlist:** `"files": [ "dist", "README.md", "LICENSE" ]`
+- **Engines:** `"node": ">=18.0.0"`
 
-### 3.2 Dependency Tree
-- **Runtime Dependencies:** **0** (Zero runtime dependencies).
-- **Development Dependencies:**
-  - `@types/node: ^22.13.0`
-  - `tsx: ^4.23.15`
-  - `typescript: ^5.7.3`
+### 3.2 Dependency Hygiene
+- **Runtime Dependencies:** `0` (Zero third-party runtime dependencies)
+- **DevDependencies:** Limited to `@types/node` and `typescript`
+- **PeerDependencies:** None
 
 ---
 
-## 4. Pre-Release Hygiene Checklist
+## 4. Release Freeze Status
 
-- [x] `node_modules` strictly excluded from source distributions and tarball.
-- [x] No credentials, `.env*` files, or SSH keys present in git staging or manifest.
-- [x] Native compilation verified clean with `npm run build` (`tsc`).
-- [x] Typechecking passes with 0 errors via `npm run typecheck` (`tsc --noEmit`).
-- [x] Tests verified clean on native platform via `npm test` (72/72 tests pass).
-- [x] Tarball size is 54.3 kB, ensuring fast download and cold-start execution.
-- [x] Public publishing **FROZEN** until explicit user command.
+In compliance with instructions:
+- `npm publish` has NOT been executed.
+- No git tag or release has been pushed to any remote registry or GitHub repository.
+- Package artifacts are fully validated and held locally.

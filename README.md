@@ -196,13 +196,13 @@ open demo/index.html
 > **What GlobalInputLab does NOT do:**
 > - Unicode scanning does **not** replace application-level authorization, authentication, or input schema validation.
 > - Unicode scanning does **not** replace parameterized SQL queries or Content Security Policies (CSP).
-> - Homoglyph detection implements a curated security subset of UTS #39 (v15.1.0). Legitimate multilingual applications handling Cyrillic, Greek, or Arabic content must not automatically convert genuine words into Latin lookalikes.
+> - Homoglyph detection implements a curated security subset of UTS #39 (v18.0.0). Legitimate multilingual applications handling Cyrillic, Greek, or Arabic content must not automatically convert genuine words into Latin lookalikes.
 > - GlobalInputLab tests text encoding, serialization, and API handling—it does **not** directly execute against internal neural network model weights or tokenizer vocabularies without an API wrapper.
 
 > [!CAUTION]
 > **Operational Safety Warning for Active Testing:**
 > - Probing HTTP endpoints and shell commands sends actual test payloads (including edge cases and adversarial strings) to target processes. **Never run active probes against production systems or third-party endpoints without prior authorization.**
-> - Command probing executes local binaries with the ambient permissions of the current shell user. Only probe trusted, non-destructive test scripts or local echo binaries. Configurable maximum response limits (`--max-response-bytes`, default 10 MB) are enforced to protect against memory exhaustion.
+> - Command probing executes local binaries with the ambient permissions of the current shell user. Only probe trusted, non-destructive test scripts or local echo binaries. Configurable maximum limits (`--max-response-bytes` and `--max-stderr-bytes`, each defaulting to 10 MB) are enforced to protect against memory exhaustion.
 
 ---
 

@@ -2,13 +2,15 @@
  * GlobalInputLab - Homoglyph & Confusable Detector
  * Detects cross-script visual confusables (Cyrillic, Greek, Armenian, Cherokee, Math, Fullwidth)
  * used for IDN spoofing, credential masquerading, and filter evasion.
- * Standards Alignment: Curated security subset based on Unicode Technical Standard #39 (UTS #39 v15.1.0).
+ * Standards Alignment: Curated security subset based on Unicode Technical Standard #39 (UTS #39 v18.0.0).
+ * Official Security Data: https://www.unicode.org/Public/18.0.0/security/confusables.txt
+ * Official Standard: https://www.unicode.org/reports/tr39/
  * (c) 2026 Brahim Battou. MIT License.
  */
 
 import { HomoglyphMatch, HomoglyphReport } from '../types.js';
 
-export const UTS_39_VERSION = '15.1.0';
+export const UTS_39_VERSION = '18.0.0';
 export const DATASET_TYPE = 'curated-security-subset' as const;
 
 interface ConfusableEntry {
@@ -17,7 +19,7 @@ interface ConfusableEntry {
   sourceScript: string;
 }
 
-// Curated high-fidelity table of confusables that visually mimic Latin characters (UTS #39 v15.1.0)
+// Curated high-fidelity table of confusables that visually mimic Latin characters (UTS #39 v18.0.0)
 const CONFUSABLES_MAP: Record<number, ConfusableEntry> = {
   // Cyrillic Small
   0x0430: { target: 'a', targetCp: 0x0061, sourceScript: 'Cyrillic' },
@@ -164,17 +166,51 @@ export class HomoglyphDetector {
     const matches: HomoglyphMatch[] = [];
     let normalizedLatinPreview = '';
 
-    // Split text into words to evaluate mixed-script context
-    const words = text.split(/[\s,.;:!?'"()\[\]{}/\\<>+=_-]+/);
-    const mixedScriptWords = new Set<string>();
-    for (const w of words) {
-      if (w && this.checkMixedScriptWord(w)) {
-        mixedScriptWords.add(w);
+    const chars = Array.from(text);
+
+    // Segment text into precise token spans to track character-offset boundaries
+    interface TokenSpan {
+      start: number;
+      end: number;
+      text: string;
+      isMixedScript: boolean;
+    }
+
+    const tokenSpans: TokenSpan[] = [];
+    let currentTokenStart = -1;
+
+    for (let i = 0; i < chars.length; i++) {
+      const ch = chars[i];
+      const isDelim = /[\s,.;:!?'"()\[\]{}/\\<>+=_~@#$%^&*|\-]/.test(ch);
+      if (!isDelim) {
+        if (currentTokenStart === -1) {
+          currentTokenStart = i;
+        }
+      } else {
+        if (currentTokenStart !== -1) {
+          const tokenStr = chars.slice(currentTokenStart, i).join('');
+          tokenSpans.push({
+            start: currentTokenStart,
+            end: i,
+            text: tokenStr,
+            isMixedScript: this.checkMixedScriptWord(tokenStr),
+          });
+          currentTokenStart = -1;
+        }
       }
     }
 
+    if (currentTokenStart !== -1) {
+      const tokenStr = chars.slice(currentTokenStart, chars.length).join('');
+      tokenSpans.push({
+        start: currentTokenStart,
+        end: chars.length,
+        text: tokenStr,
+        isMixedScript: this.checkMixedScriptWord(tokenStr),
+      });
+    }
+
     let pos = 0;
-    const chars = Array.from(text);
 
     for (let i = 0; i < chars.length; i++) {
       const char = chars[i];
@@ -187,7 +223,9 @@ export class HomoglyphDetector {
 
       const confusable = CONFUSABLES_MAP[cp];
       if (confusable) {
-        const isMixedScript = Array.from(mixedScriptWords).some((w) => w.includes(char));
+        // Evaluate mixed-script status strictly based on the token enclosing this specific character offset
+        const enclosingToken = tokenSpans.find((t) => i >= t.start && i < t.end);
+        const isMixedScript = enclosingToken ? enclosingToken.isMixedScript : false;
 
         matches.push({
           char,

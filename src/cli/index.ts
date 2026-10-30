@@ -46,6 +46,8 @@ Options:
   --json-path <path>     Dot-notation path to extract response string from JSON (e.g. 'data.content')
   --command <cmd>        Target shell binary to probe safely with payload argument
   --framing <policy>     Output framing policy: 'exact' (default, no trimming), 'strip-trailing-newline', or 'trim'
+  --max-response-bytes <n> Max allowed stdout/response bytes before aborting (default: 10MB)
+  --max-stderr-bytes <n>   Max allowed stderr bytes before aborting (default: 10MB)
   --strict               Treat inconclusive tests as failures
   --junit <file>         Export test results to JUnit XML file
   --markdown <file>      Export test results to Markdown table file
@@ -196,6 +198,12 @@ async function main(): Promise<void> {
         category = catArg;
       }
 
+      const maxRespIndex = args.indexOf('--max-response-bytes');
+      const maxResponseBytes = maxRespIndex !== -1 ? parseInt(args[maxRespIndex + 1], 10) : undefined;
+
+      const maxStderrIndex = args.indexOf('--max-stderr-bytes');
+      const maxStderrBytes = maxStderrIndex !== -1 ? parseInt(args[maxStderrIndex + 1], 10) : undefined;
+
       const isStrict = args.includes('--strict');
 
       const runner = new TestRunner();
@@ -204,6 +212,8 @@ async function main(): Promise<void> {
         jsonPath,
         targetCommand,
         outputFraming,
+        maxResponseBytes: Number.isFinite(maxResponseBytes) ? maxResponseBytes : undefined,
+        maxStderrBytes: Number.isFinite(maxStderrBytes) ? maxStderrBytes : undefined,
         categories: category ? [category] : undefined,
       });
 

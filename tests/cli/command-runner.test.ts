@@ -123,3 +123,82 @@ test('probeCommand - supports arguments containing spaces without shell interpol
   assert.equal(res.outcome, 'passed');
   assert.equal(res.extractedPayload, 'Payload With Multiple Spaces');
 });
+
+test('probeCommand - preserves Euro symbol (€) split across multiple stdout chunks', async () => {
+  const runner = new TestRunner();
+  const euroTc: TestCase = {
+    ...SAMPLE_TC,
+    id: 'euro-chunk-test',
+    payload: '€',
+  };
+
+  // 0xE2 in chunk 1, 0x82 0xAC in chunk 2
+  const cmd = `node -e "process.stdout.write(Buffer.from([0xE2])); setTimeout(() => { process.stdout.write(Buffer.from([0x82, 0xAC])); }, 25);"`;
+  const res = await runner.probeCommand(euroTc, cmd, { outputFraming: 'exact' });
+
+  assert.equal(res.outcome, 'passed');
+  assert.equal(res.passed, true);
+  assert.equal(res.dataPreserved, true);
+  assert.equal(res.extractedPayload, '€');
+  assert.ok(!res.extractedPayload.includes('\uFFFD'));
+});
+
+test('probeCommand - preserves Arabic, Chinese, Emoji, and mixed text split across stream chunk boundaries', async () => {
+  const runner = new TestRunner();
+
+  // 1. Emoji 😀 (0xF0 0x9F 0x98 0x80) split 2 bytes + 2 bytes
+  const emojiTc: TestCase = { ...SAMPLE_TC, id: 'emoji-split', payload: '😀' };
+  const emojiCmd = `node -e "process.stdout.write(Buffer.from([0xF0, 0x9F])); setTimeout(() => { process.stdout.write(Buffer.from([0x98, 0x80])); }, 20);"`;
+  const emojiRes = await runner.probeCommand(emojiTc, emojiCmd, { outputFraming: 'exact' });
+  assert.equal(emojiRes.outcome, 'passed');
+  assert.equal(emojiRes.extractedPayload, '😀');
+  assert.ok(!emojiRes.extractedPayload?.includes('\uFFFD'));
+
+  // 2. Chinese 世界 (0xE4 0xB8 0x96, 0xE7 0x95 0x8C) split across 3 chunks
+  const cjkTc: TestCase = { ...SAMPLE_TC, id: 'cjk-split', payload: '世界' };
+  const cjkCmd = `node -e "process.stdout.write(Buffer.from([0xE4, 0xB8])); setTimeout(() => { process.stdout.write(Buffer.from([0x96, 0xE7])); setTimeout(() => { process.stdout.write(Buffer.from([0x95, 0x8C])); }, 15); }, 15);"`;
+  const cjkRes = await runner.probeCommand(cjkTc, cjkCmd, { outputFraming: 'exact' });
+  assert.equal(cjkRes.outcome, 'passed');
+  assert.equal(cjkRes.extractedPayload, '世界');
+  assert.ok(!cjkRes.extractedPayload?.includes('\uFFFD'));
+
+  // 3. Arabic مرحبا split across chunks
+  const arabicStr = 'مرحبا';
+  const arabicTc: TestCase = { ...SAMPLE_TC, id: 'arabic-split', payload: arabicStr };
+  const arabicBuf = Buffer.from(arabicStr, 'utf8');
+  const half = Math.floor(arabicBuf.length / 2);
+  const b1 = Array.from(arabicBuf.subarray(0, half));
+  const b2 = Array.from(arabicBuf.subarray(half));
+  const arabicCmd = `node -e "process.stdout.write(Buffer.from(${JSON.stringify(b1)})); setTimeout(() => { process.stdout.write(Buffer.from(${JSON.stringify(b2)})); }, 20);"`;
+  const arabicRes = await runner.probeCommand(arabicTc, arabicCmd, { outputFraming: 'exact' });
+  assert.equal(arabicRes.outcome, 'passed');
+  assert.equal(arabicRes.extractedPayload, arabicStr);
+  assert.ok(!arabicRes.extractedPayload?.includes('\uFFFD'));
+
+  // 4. Mixed multilingual string: "Hello € 世界 مرحبا 😀!" split across multiple writes
+  const mixedStr = 'Hello € 世界 مرحبا 😀!';
+  const mixedTc: TestCase = { ...SAMPLE_TC, id: 'mixed-split', payload: mixedStr };
+  const mixedBuf = Buffer.from(mixedStr, 'utf8');
+  // Split into 3-byte chunks to stress test boundary reconstruction
+  const chunk1 = Array.from(mixedBuf.subarray(0, 7));
+  const chunk2 = Array.from(mixedBuf.subarray(7, 16));
+  const chunk3 = Array.from(mixedBuf.subarray(16));
+  const mixedCmd = `node -e "process.stdout.write(Buffer.from(${JSON.stringify(chunk1)})); setTimeout(() => { process.stdout.write(Buffer.from(${JSON.stringify(chunk2)})); setTimeout(() => { process.stdout.write(Buffer.from(${JSON.stringify(chunk3)})); }, 15); }, 15);"`;
+  const mixedRes = await runner.probeCommand(mixedTc, mixedCmd, { outputFraming: 'exact' });
+  assert.equal(mixedRes.outcome, 'passed');
+  assert.equal(mixedRes.extractedPayload, mixedStr);
+  assert.ok(!mixedRes.extractedPayload?.includes('\uFFFD'));
+});
+
+test('probeCommand - bounds and safely handles large stderr output without memory exhaustion', async () => {
+  const runner = new TestRunner();
+  // Process outputs 10KB of stderr, but limit is 500 bytes
+  const cmd = `node -e "for (let i = 0; i < 100; i++) process.stderr.write('x'.repeat(100));"`;
+  const res = await runner.probeCommand(SAMPLE_TC, cmd, { maxStderrBytes: 500 });
+
+  assert.equal(res.outcome, 'failed');
+  assert.equal(res.passed, false);
+  assert.equal(res.transportOk, false);
+  assert.ok(res.error?.includes('stderr exceeded maximum permitted size of 500 bytes'));
+});
+
