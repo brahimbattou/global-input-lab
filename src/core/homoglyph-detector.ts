@@ -1,0 +1,208 @@
+/**
+ * GlobalInputLab - Homoglyph & Confusable Detector
+ * Detects cross-script visual confusables (Cyrillic, Greek, Math, Fullwidth)
+ * used for IDN spoofing, filter evasion, and prompt injection (UTS #39).
+ * (c) 2026 Brahim Battou. MIT License.
+ */
+
+import { HomoglyphMatch, HomoglyphReport } from '../types.js';
+
+interface ConfusableEntry {
+  target: string;
+  targetCp: number;
+  sourceScript: string;
+}
+
+// Curated high-fidelity table of confusables that visually mimic Latin characters (UTS #39)
+const CONFUSABLES_MAP: Record<number, ConfusableEntry> = {
+  // Cyrillic Small
+  0x0430: { target: 'a', targetCp: 0x0061, sourceScript: 'Cyrillic' },
+  0x0441: { target: 'c', targetCp: 0x0063, sourceScript: 'Cyrillic' },
+  0x0435: { target: 'e', targetCp: 0x0065, sourceScript: 'Cyrillic' },
+  0x0456: { target: 'i', targetCp: 0x0069, sourceScript: 'Cyrillic' },
+  0x0458: { target: 'j', targetCp: 0x006a, sourceScript: 'Cyrillic' },
+  0x043e: { target: 'o', targetCp: 0x006f, sourceScript: 'Cyrillic' },
+  0x0440: { target: 'p', targetCp: 0x0070, sourceScript: 'Cyrillic' },
+  0x0455: { target: 's', targetCp: 0x0073, sourceScript: 'Cyrillic' },
+  0x0445: { target: 'x', targetCp: 0x0078, sourceScript: 'Cyrillic' },
+  0x0443: { target: 'y', targetCp: 0x0079, sourceScript: 'Cyrillic' },
+
+  // Cyrillic Capital
+  0x0410: { target: 'A', targetCp: 0x0041, sourceScript: 'Cyrillic' },
+  0x0412: { target: 'B', targetCp: 0x0042, sourceScript: 'Cyrillic' },
+  0x0421: { target: 'C', targetCp: 0x0043, sourceScript: 'Cyrillic' },
+  0x0415: { target: 'E', targetCp: 0x0045, sourceScript: 'Cyrillic' },
+  0x041d: { target: 'H', targetCp: 0x0048, sourceScript: 'Cyrillic' },
+  0x0406: { target: 'I', targetCp: 0x0049, sourceScript: 'Cyrillic' },
+  0x0408: { target: 'J', targetCp: 0x004a, sourceScript: 'Cyrillic' },
+  0x041a: { target: 'K', targetCp: 0x004b, sourceScript: 'Cyrillic' },
+  0x041c: { target: 'M', targetCp: 0x004d, sourceScript: 'Cyrillic' },
+  0x041e: { target: 'O', targetCp: 0x004e, sourceScript: 'Cyrillic' },
+  0x0420: { target: 'P', targetCp: 0x0050, sourceScript: 'Cyrillic' },
+  0x0405: { target: 'S', targetCp: 0x0053, sourceScript: 'Cyrillic' },
+  0x0422: { target: 'T', targetCp: 0x0054, sourceScript: 'Cyrillic' },
+  0x0425: { target: 'X', targetCp: 0x0058, sourceScript: 'Cyrillic' },
+  0x04ae: { target: 'Y', targetCp: 0x0059, sourceScript: 'Cyrillic' },
+
+  // Greek Small
+  0x03b1: { target: 'a', targetCp: 0x0061, sourceScript: 'Greek' },
+  0x03b5: { target: 'e', targetCp: 0x0065, sourceScript: 'Greek' },
+  0x03b9: { target: 'i', targetCp: 0x0069, sourceScript: 'Greek' },
+  0x03ba: { target: 'k', targetCp: 0x006b, sourceScript: 'Greek' },
+  0x03bd: { target: 'v', targetCp: 0x0076, sourceScript: 'Greek' },
+  0x03bf: { target: 'o', targetCp: 0x006f, sourceScript: 'Greek' },
+  0x03c1: { target: 'p', targetCp: 0x0070, sourceScript: 'Greek' },
+  0x03c4: { target: 't', targetCp: 0x0074, sourceScript: 'Greek' },
+  0x03c5: { target: 'u', targetCp: 0x0075, sourceScript: 'Greek' },
+  0x03c7: { target: 'x', targetCp: 0x0078, sourceScript: 'Greek' },
+
+  // Greek Capital
+  0x0391: { target: 'A', targetCp: 0x0041, sourceScript: 'Greek' },
+  0x0392: { target: 'B', targetCp: 0x0042, sourceScript: 'Greek' },
+  0x0395: { target: 'E', targetCp: 0x0045, sourceScript: 'Greek' },
+  0x0396: { target: 'Z', targetCp: 0x005a, sourceScript: 'Greek' },
+  0x0397: { target: 'H', targetCp: 0x0048, sourceScript: 'Greek' },
+  0x0399: { target: 'I', targetCp: 0x0049, sourceScript: 'Greek' },
+  0x039a: { target: 'K', targetCp: 0x004b, sourceScript: 'Greek' },
+  0x039c: { target: 'M', targetCp: 0x004d, sourceScript: 'Greek' },
+  0x039d: { target: 'N', targetCp: 0x004e, sourceScript: 'Greek' },
+  0x039f: { target: 'O', targetCp: 0x004f, sourceScript: 'Greek' },
+  0x03a1: { target: 'P', targetCp: 0x0050, sourceScript: 'Greek' },
+  0x03a4: { target: 'T', targetCp: 0x0054, sourceScript: 'Greek' },
+  0x03a5: { target: 'Y', targetCp: 0x0059, sourceScript: 'Greek' },
+  0x03a7: { target: 'X', targetCp: 0x0058, sourceScript: 'Greek' },
+
+  // Cherokee / Hebrew / Armenian Lookalikes
+  0x13a0: { target: 'D', targetCp: 0x0044, sourceScript: 'Cherokee' },
+  0x13a1: { target: 'R', targetCp: 0x0052, sourceScript: 'Cherokee' },
+  0x13a2: { target: 'T', targetCp: 0x0054, sourceScript: 'Cherokee' },
+  0x0585: { target: 'o', targetCp: 0x006f, sourceScript: 'Armenian' },
+};
+
+// Add Fullwidth forms (U+FF01..U+FF5E map to U+0021..U+007E)
+for (let fw = 0xff01; fw <= 0xff5e; fw++) {
+  const ascii = fw - 0xfee0;
+  CONFUSABLES_MAP[fw] = {
+    target: String.fromCharCode(ascii),
+    targetCp: ascii,
+    sourceScript: 'Fullwidth',
+  };
+}
+
+export class HomoglyphDetector {
+  /**
+   * Helper to detect if a word/token contains both Latin letters and foreign confusables (UTS #39 Mixed-Script).
+   */
+  private checkMixedScriptWord(word: string): boolean {
+    let hasLatin = false;
+    let hasForeignConfusable = false;
+
+    for (const char of word) {
+      const cp = char.codePointAt(0);
+      if (cp === undefined) continue;
+
+      if ((cp >= 0x0041 && cp <= 0x005a) || (cp >= 0x0061 && cp <= 0x007a)) {
+        hasLatin = true;
+      } else if (CONFUSABLES_MAP[cp]) {
+        hasForeignConfusable = true;
+      }
+    }
+
+    return hasLatin && hasForeignConfusable;
+  }
+
+  /**
+   * Inspects a string and reports confusable/homoglyph characters
+   */
+  public detect(text: string): HomoglyphReport {
+    const matches: HomoglyphMatch[] = [];
+    let normalizedLatinPreview = '';
+
+    // Split text into words to evaluate mixed-script context
+    const words = text.split(/[\s,.;:!?'"()\[\]{}/\\<>+=_-]+/);
+    const mixedScriptWords = new Set<string>();
+    for (const w of words) {
+      if (w && this.checkMixedScriptWord(w)) {
+        mixedScriptWords.add(w);
+      }
+    }
+
+    let pos = 0;
+    const chars = Array.from(text);
+
+    for (let i = 0; i < chars.length; i++) {
+      const char = chars[i];
+      const cp = char.codePointAt(0);
+      if (cp === undefined) {
+        normalizedLatinPreview += char;
+        pos++;
+        continue;
+      }
+
+      const confusable = CONFUSABLES_MAP[cp];
+      if (confusable) {
+        // Find which word this character belongs to
+        const isMixedScript = Array.from(mixedScriptWords).some((w) => w.includes(char));
+
+        matches.push({
+          char,
+          codePoint: cp,
+          hex: 'U+' + cp.toString(16).toUpperCase().padStart(4, '0'),
+          position: pos,
+          confusableWith: confusable.target,
+          confusableCodePoint: confusable.targetCp,
+          confusableHex: 'U+' + confusable.targetCp.toString(16).toUpperCase().padStart(4, '0'),
+          sourceScript: confusable.sourceScript,
+          targetScript: 'Latin',
+          isMixedScriptWord: isMixedScript,
+          riskDescription: isMixedScript
+            ? `High Risk Mixed-Script Spoof: ${confusable.sourceScript} character embedded inside a Latin word mimicking '${confusable.target}'`
+            : `Cross-Script Confusable: ${confusable.sourceScript} character visually resembles Latin '${confusable.target}'`,
+        });
+        normalizedLatinPreview += confusable.target;
+      } else {
+        normalizedLatinPreview += char;
+      }
+
+      pos++;
+    }
+
+    return {
+      input: text,
+      hasHomoglyphs: matches.length > 0,
+      matches,
+      normalizedLatinPreview,
+    };
+  }
+
+  /**
+   * Returns true if string contains any cross-script confusable characters
+   */
+  public hasConfusables(text: string): boolean {
+    for (const char of text) {
+      const cp = char.codePointAt(0);
+      if (cp !== undefined && CONFUSABLES_MAP[cp]) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Translates confusable homoglyphs to their canonical Latin base characters.
+   * STRICT NOTE: Should only be used for credential collision checks (e.g. username deduplication),
+   * NEVER applied blindly to genuine international user content.
+   */
+  public canonicalize(text: string): string {
+    let out = '';
+    for (const char of text) {
+      const cp = char.codePointAt(0);
+      if (cp !== undefined && CONFUSABLES_MAP[cp]) {
+        out += CONFUSABLES_MAP[cp].target;
+      } else {
+        out += char;
+      }
+    }
+    return out;
+  }
+}

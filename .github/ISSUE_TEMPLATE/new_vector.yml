@@ -1,0 +1,37 @@
+name: New Test Vector Submission
+description: Propose a new language, script, emoji, or security test vector
+title: "[Vector]: "
+labels: ["test-vector"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for submitting a new test vector! Contributing authentic international edge cases helps the entire open-source ecosystem.
+  - type: input
+    id: category
+    attributes:
+      label: Target Category
+      description: Category key (names, emails, text_multilingual, security_adversarial, emoji_zwj, numbers_dates)
+      placeholder: text_multilingual
+    validations:
+      required: true
+  - type: textarea
+    id: input-string
+    attributes:
+      label: Test Input String
+      description: The exact string with Unicode characters.
+      placeholder: e.g. "مصر" or "👨‍👩‍👧‍👦"
+    validations:
+      required: true
+  - type: textarea
+    id: linguistic-context
+    attributes:
+      label: Linguistic or Security Context
+      description: Explain the script, language, or attack vector this string represents, and why common parsers corrupt or misclassify it.
+    validations:
+      required: true
+  - type: input
+    id: standards
+    attributes:
+      label: Relevant Unicode Standards / RFCs
+      placeholder: e.g. UAX #29, UAX #9, RFC 6530, UTS #39

@@ -1,0 +1,58 @@
+{
+  "name": "global-input-lab",
+  "version": "0.1.0",
+  "description": "Modern International Input & Data Integrity Testing Toolkit for Robust Global Software.",
+  "keywords": [
+    "unicode",
+    "i18n",
+    "internationalization",
+    "testing",
+    "data-integrity",
+    "homoglyphs",
+    "utf8",
+    "fuzzing",
+    "qa",
+    "cli",
+    "prompt-injection",
+    "security"
+  ],
+  "author": "Brahim Battou (https://github.com/brahimbattou)",
+  "license": "MIT",
+  "homepage": "https://github.com/brahimbattou/global-input-lab#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brahimbattou/global-input-lab.git"
+  },
+  "bugs": {
+    "url": "https://github.com/brahimbattou/global-input-lab/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "global-input-lab": "./dist/cli/index.js",
+    "gil": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/**/*.test.ts",
+    "test:coverage": "node --import tsx --test --experimental-test-coverage tests/**/*.test.ts",
+    "lint": "tsc --noEmit",
+    "prepare": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
