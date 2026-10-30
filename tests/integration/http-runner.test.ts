@@ -225,3 +225,233 @@ test('HTTP Runner - fails safely when response exceeds maxResponseBytes', async 
     server.close();
   }
 });
+
+const ufffdTestCase: TestCase = {
+  id: 'test_ufffd_01',
+  category: 'symbols' as any,
+  name: 'Unicode Replacement Character',
+  description: 'Payload is U+FFFD',
+  payload: '\uFFFD',
+  expectedBehavior: 'Must preserve U+FFFD as valid UTF-8 (EF BF BD)',
+  tags: ['replacement', 'boundary'],
+  riskLevel: 'warning',
+};
+
+// Regression A: Invalid sequence: Expected U+FFFD, response byte 0x80 -> FAILED
+test('HTTP Runner - rejects U+FFFD payload when response is invalid raw byte 0x80 (reproduction case)', async () => {
+  const { server, url } = await createMockServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end(Buffer.from([0x80])); // Invalid single UTF-8 byte
+  });
+
+  try {
+    const runner = new TestRunner();
+    const result = await runner.probeHttpEndpoint(ufffdTestCase, url, {});
+
+    assert.equal(result.outcome, 'failed');
+    assert.equal(result.passed, false);
+    assert.equal(result.dataPreserved, false);
+    assert.ok(result.error?.includes('Malformed or truncated UTF-8') || result.error?.includes('Byte mismatch'));
+  } finally {
+    server.close();
+  }
+});
+
+// Regression B: Valid U+FFFD: Response bytes EF BF BD -> PASSED
+test('HTTP Runner - accepts valid UTF-8 encoding of U+FFFD (0xEF 0xBF 0xBD)', async () => {
+  const { server, url } = await createMockServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end(Buffer.from([0xEF, 0xBF, 0xBD])); // Valid 3-byte UTF-8 encoding of U+FFFD
+  });
+
+  try {
+    const runner = new TestRunner();
+    const result = await runner.probeHttpEndpoint(ufffdTestCase, url, {});
+
+    assert.equal(result.outcome, 'passed');
+    assert.equal(result.passed, true);
+    assert.equal(result.transportOk, true);
+    assert.equal(result.dataPreserved, true);
+  } finally {
+    server.close();
+  }
+});
+
+// Regression C: Invalid continuation byte -> FAILED
+test('HTTP Runner - rejects response with invalid continuation byte in multibyte sequence', async () => {
+  const { server, url } = await createMockServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    // 0xC3 starts a 2-byte sequence, but 0x28 is ASCII '(' instead of 0x80..0xBF
+    res.end(Buffer.from([0xC3, 0x28]));
+  });
+
+  try {
+    const runner = new TestRunner();
+    const result = await runner.probeHttpEndpoint(dummyTestCase, url, {});
+
+    assert.equal(result.outcome, 'failed');
+    assert.equal(result.passed, false);
+    assert.equal(result.dataPreserved, false);
+    assert.ok(result.error?.includes('Malformed or truncated UTF-8'));
+  } finally {
+    server.close();
+  }
+});
+
+// Regression D: Truncated multibyte sequence -> FAILED
+test('HTTP Runner - rejects response with truncated multibyte sequence', async () => {
+  const { server, url } = await createMockServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    // 0xE2 0x82 is Euro symbol missing its 3rd byte (0xAC)
+    res.end(Buffer.from([0xE2, 0x82]));
+  });
+
+  try {
+    const runner = new TestRunner();
+    const result = await runner.probeHttpEndpoint(dummyTestCase, url, {});
+
+    assert.equal(result.outcome, 'failed');
+    assert.equal(result.passed, false);
+    assert.equal(result.dataPreserved, false);
+    assert.ok(result.error?.includes('Malformed or truncated UTF-8'));
+  } finally {
+    server.close();
+  }
+});
+
+// Regression E: Multibyte UTF-8 sequence split across response chunks -> PASSED
+test('HTTP Runner - preserves multibyte UTF-8 sequence split across response stream chunks', async () => {
+  const euroTestCase: TestCase = {
+    id: 'test_euro_01',
+    category: 'text_multilingual',
+    name: 'Euro Currency Symbol',
+    description: 'Euro symbol € (0xE2 0x82 0xAC)',
+    payload: '€',
+    expectedBehavior: 'Must preserve € split across chunks',
+    tags: ['currency', 'stream'],
+    riskLevel: 'info',
+  };
+
+  const { server, url } = await createMockServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    // Split 3-byte Euro character: 2 bytes in chunk 1, 1 byte in chunk 2
+    res.write(Buffer.from([0xE2, 0x82]));
+    setTimeout(() => {
+      res.write(Buffer.from([0xAC]));
+      res.end();
+    }, 20);
+  });
+
+  try {
+    const runner = new TestRunner();
+    const result = await runner.probeHttpEndpoint(euroTestCase, url, {});
+
+    assert.equal(result.outcome, 'passed');
+    assert.equal(result.passed, true);
+    assert.equal(result.transportOk, true);
+    assert.equal(result.dataPreserved, true);
+    assert.equal(result.extractedPayload, '€');
+  } finally {
+    server.close();
+  }
+});
+
+// Regression F: JSON response with valid UTF-8 and an extracted echo payload -> PASSED
+test('HTTP Runner - accepts JSON response with valid UTF-8 and extracted echo payload', async () => {
+  const arabicEmojiTestCase: TestCase = {
+    id: 'test_arabic_emoji_01',
+    category: 'text_multilingual',
+    name: 'Arabic and Emoji Text',
+    description: 'مرحبا 🚀',
+    payload: 'مرحبا 🚀',
+    expectedBehavior: 'Must preserve Arabic and rocket emoji',
+    tags: ['arabic', 'emoji'],
+    riskLevel: 'info',
+  };
+
+  const { server, url } = await createMockServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ echo: 'مرحبا 🚀' }));
+  });
+
+  try {
+    const runner = new TestRunner();
+    const result = await runner.probeHttpEndpoint(arabicEmojiTestCase, url, {});
+
+    assert.equal(result.outcome, 'passed');
+    assert.equal(result.passed, true);
+    assert.equal(result.transportOk, true);
+    assert.equal(result.dataPreserved, true);
+    assert.equal(result.extractedPayload, 'مرحبا 🚀');
+  } finally {
+    server.close();
+  }
+});
+
+// Regression G: JSON response containing malformed UTF-8 -> FAILED
+test('HTTP Runner - rejects JSON response containing malformed UTF-8 bytes', async () => {
+  const { server, url } = await createMockServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    // JSON envelope containing invalid byte 0x80 inside string
+    const malformedJson = Buffer.concat([
+      Buffer.from('{"echo": "bad-'),
+      Buffer.from([0x80]),
+      Buffer.from('"}'),
+    ]);
+    res.end(malformedJson);
+  });
+
+  try {
+    const runner = new TestRunner();
+    const result = await runner.probeHttpEndpoint(dummyTestCase, url, {});
+
+    assert.equal(result.outcome, 'failed');
+    assert.equal(result.passed, false);
+    assert.equal(result.dataPreserved, false);
+    assert.ok(result.error?.includes('Malformed or truncated UTF-8'));
+  } finally {
+    server.close();
+  }
+});
+
+// Regression H: A normal HTTP 200 acknowledgement without echo data -> INCONCLUSIVE
+test('HTTP Runner - marks normal HTTP 200 acknowledgement without echo data as INCONCLUSIVE', async () => {
+  const { server, url } = await createMockServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', message: 'Payload received successfully' }));
+  });
+
+  try {
+    const runner = new TestRunner();
+    const result = await runner.probeHttpEndpoint(dummyTestCase, url, {});
+
+    assert.equal(result.outcome, 'inconclusive');
+    assert.equal(result.passed, false);
+    assert.equal(result.transportOk, true);
+    assert.equal(result.dataPreserved, null);
+    assert.ok(result.inconclusiveReason?.includes('contained no echoable data'));
+  } finally {
+    server.close();
+  }
+});
+
+// Regression I: Unsupported charset in Content-Type header -> FAILED
+test('HTTP Runner - rejects response specifying unsupported charset (e.g. ISO-8859-1)', async () => {
+  const { server, url } = await createMockServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=iso-8859-1' });
+    res.end('Some response');
+  });
+
+  try {
+    const runner = new TestRunner();
+    const result = await runner.probeHttpEndpoint(dummyTestCase, url, {});
+
+    assert.equal(result.outcome, 'failed');
+    assert.equal(result.passed, false);
+    assert.equal(result.dataPreserved, false);
+    assert.ok(result.error?.includes('Unsupported response charset'));
+  } finally {
+    server.close();
+  }
+});
+

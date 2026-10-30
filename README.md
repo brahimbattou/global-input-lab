@@ -208,10 +208,10 @@ open demo/index.html
 
 ## Quality & Testing
 
-GlobalInputLab maintains 100% automated test verification using Node.js's native test runner:
+GlobalInputLab maintains 100% automated test verification using Node.js's native test runner (`node:test`), with **93 automated tests** passing across 10 test suites:
 
 ```bash
-# Run all unit, integration, and CLI tests
+# Run all 93 unit, integration, and CLI tests
 npm test
 
 # Run tests with code coverage analysis

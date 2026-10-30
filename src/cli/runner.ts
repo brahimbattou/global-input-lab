@@ -233,8 +233,6 @@ export class TestRunner {
         },
         (res: http.IncomingMessage) => {
           const bodyChunks: Buffer[] = [];
-          const decoder = new StringDecoder('utf8');
-          let responseBody = '';
           let receivedBytes = 0;
 
           res.on('data', (chunk: Buffer) => {
@@ -253,11 +251,10 @@ export class TestRunner {
               });
             }
             bodyChunks.push(chunk);
-            responseBody += decoder.write(chunk);
           });
 
           res.on('end', () => {
-            responseBody += decoder.end();
+            const fullRawBuffer = Buffer.concat(bodyChunks);
             const durationMs = Date.now() - start;
             const statusCode = res.statusCode || 0;
             const transportOk = statusCode >= 200 && statusCode < 300;
@@ -271,32 +268,76 @@ export class TestRunner {
                 dataPreserved: false,
                 statusCode,
                 durationMs,
-                receivedPayload: responseBody,
+                receivedBytes: fullRawBuffer,
                 error: `HTTP transport failure with status code ${statusCode}`,
               });
             }
 
-            // Transport is OK (2xx). Now rigorously verify Data Integrity:
-            let extractedPayload: string | undefined;
+            // 1. Explicitly check response charset in Content-Type header
+            const contentType = res.headers['content-type'] || '';
+            const charsetMatch = contentType.match(/charset\s*=\s*["']?([^;"'\s]+)["']?/i);
+            if (charsetMatch) {
+              const charset = charsetMatch[1].toLowerCase();
+              if (charset !== 'utf-8' && charset !== 'utf8') {
+                return safeResolve({
+                  testCase: tc,
+                  outcome: 'failed',
+                  passed: false,
+                  transportOk: true,
+                  dataPreserved: false,
+                  statusCode,
+                  durationMs,
+                  receivedBytes: fullRawBuffer,
+                  error: `Unsupported response charset '${charsetMatch[1]}'. Only UTF-8 is supported for data integrity verification.`,
+                });
+              }
+            }
+
+            // 2. Strict UTF-8 validation before ANY lossy string decoding
+            let responseBody = '';
+            if (fullRawBuffer.length > 0) {
+              try {
+                const strictDecoder = new TextDecoder('utf-8', { fatal: true });
+                responseBody = strictDecoder.decode(fullRawBuffer);
+              } catch (err) {
+                return safeResolve({
+                  testCase: tc,
+                  outcome: 'failed',
+                  passed: false,
+                  transportOk: true,
+                  dataPreserved: false,
+                  statusCode,
+                  durationMs,
+                  receivedBytes: fullRawBuffer,
+                  error: `Malformed or truncated UTF-8 in HTTP response: ${(err as Error).message}`,
+                });
+              }
+            }
+
+            // 3. Check for empty response (e.g. HTTP 204 or empty HTTP 200)
+            if (fullRawBuffer.length === 0) {
+              return safeResolve({
+                testCase: tc,
+                outcome: 'inconclusive',
+                passed: false,
+                transportOk: true,
+                dataPreserved: null,
+                statusCode,
+                durationMs,
+                receivedBytes: fullRawBuffer,
+                inconclusiveReason: 'Server returned HTTP 2xx, but response contained no echoable data to verify byte-preservation.',
+              });
+            }
+
+            // 4. Distinguish between JSON response vs Direct Raw-Text response
+            let isJson = false;
+            let parsedJson: unknown;
 
             if (options.jsonPath) {
+              // Explicit jsonPath requested: response MUST be valid JSON
+              isJson = true;
               try {
-                const parsed = JSON.parse(responseBody);
-                const extracted = this.extractJsonPath(parsed, options.jsonPath);
-                if (extracted === undefined) {
-                  return safeResolve({
-                    testCase: tc,
-                    outcome: 'failed',
-                    passed: false,
-                    transportOk: true,
-                    dataPreserved: false,
-                    statusCode,
-                    durationMs,
-                    receivedPayload: responseBody,
-                    error: `Configured jsonPath '${options.jsonPath}' not found in JSON response`,
-                  });
-                }
-                extractedPayload = typeof extracted === 'string' ? extracted : JSON.stringify(extracted);
+                parsedJson = JSON.parse(responseBody);
               } catch (e) {
                 return safeResolve({
                   testCase: tc,
@@ -307,32 +348,139 @@ export class TestRunner {
                   statusCode,
                   durationMs,
                   receivedPayload: responseBody,
+                  receivedBytes: fullRawBuffer,
                   error: `Response was not valid JSON to evaluate jsonPath '${options.jsonPath}': ${(e as Error).message}`,
                 });
               }
             } else {
-              // Attempt smart auto-extraction
-              try {
-                const parsed = JSON.parse(responseBody);
-                if (typeof parsed === 'string') {
-                  extractedPayload = parsed;
-                } else if (parsed && typeof parsed.input === 'string') {
-                  extractedPayload = parsed.input;
-                } else if (parsed && typeof parsed.echo === 'string') {
-                  extractedPayload = parsed.echo;
-                } else if (parsed && typeof parsed.data === 'string') {
-                  extractedPayload = parsed.data;
-                }
-              } catch {
-                // Raw text response
-                if (responseBody.trim().length > 0) {
-                  extractedPayload = responseBody;
+              // Check if Content-Type is JSON or payload is JSON object/array
+              const isJsonContentType = contentType.toLowerCase().includes('application/json');
+              const trimmed = responseBody.trim();
+              if (isJsonContentType || (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                try {
+                  parsedJson = JSON.parse(responseBody);
+                  isJson = true;
+                } catch (e) {
+                  if (isJsonContentType) {
+                    return safeResolve({
+                      testCase: tc,
+                      outcome: 'failed',
+                      passed: false,
+                      transportOk: true,
+                      dataPreserved: false,
+                      statusCode,
+                      durationMs,
+                      receivedPayload: responseBody,
+                      receivedBytes: fullRawBuffer,
+                      error: `Response declared Content-Type application/json but contained invalid JSON: ${(e as Error).message}`,
+                    });
+                  }
+                  // Not valid JSON despite braces, treat as raw text
+                  isJson = false;
                 }
               }
             }
 
-            // If no echo payload could be extracted (e.g. HTTP 204 No Content, or standard acknowledgment like {"status":"ok"})
-            if (extractedPayload === undefined) {
+            // Case A: JSON Response
+            if (isJson) {
+              let extractedPayload: string | undefined;
+
+              if (options.jsonPath) {
+                const extracted = this.extractJsonPath(parsedJson, options.jsonPath);
+                if (extracted === undefined) {
+                  return safeResolve({
+                    testCase: tc,
+                    outcome: 'failed',
+                    passed: false,
+                    transportOk: true,
+                    dataPreserved: false,
+                    statusCode,
+                    durationMs,
+                    receivedPayload: responseBody,
+                    receivedBytes: fullRawBuffer,
+                    error: `Configured jsonPath '${options.jsonPath}' not found in JSON response`,
+                  });
+                }
+                extractedPayload = typeof extracted === 'string' ? extracted : JSON.stringify(extracted);
+              } else {
+                if (typeof parsedJson === 'string') {
+                  extractedPayload = parsedJson;
+                } else if (parsedJson && typeof parsedJson === 'object') {
+                  const obj = parsedJson as Record<string, unknown>;
+                  if (typeof obj.input === 'string') {
+                    extractedPayload = obj.input;
+                  } else if (typeof obj.echo === 'string') {
+                    extractedPayload = obj.echo;
+                  } else if (typeof obj.data === 'string') {
+                    extractedPayload = obj.data;
+                  } else if (typeof obj.payload === 'string') {
+                    extractedPayload = obj.payload;
+                  } else if (typeof obj.result === 'string') {
+                    extractedPayload = obj.result;
+                  }
+                }
+              }
+
+              if (extractedPayload === undefined) {
+                return safeResolve({
+                  testCase: tc,
+                  outcome: 'inconclusive',
+                  passed: false,
+                  transportOk: true,
+                  dataPreserved: null,
+                  statusCode,
+                  durationMs,
+                  receivedPayload: responseBody,
+                  receivedBytes: fullRawBuffer,
+                  inconclusiveReason: 'Server returned HTTP 2xx JSON response, but response contained no echoable data to verify byte-preservation.',
+                });
+              }
+
+              // Verify extracted string payload against submitted vector
+              const rt = this.roundTripVerifier.verify(tc.payload, extractedPayload);
+              const passed = rt.identical;
+              const outcome: TestOutcome = passed ? 'passed' : 'failed';
+
+              return safeResolve({
+                testCase: tc,
+                outcome,
+                passed,
+                transportOk: true,
+                dataPreserved: passed,
+                statusCode,
+                durationMs,
+                receivedPayload: responseBody,
+                extractedPayload,
+                receivedBytes: fullRawBuffer,
+                extractedBytes: Buffer.from(extractedPayload, 'utf8'),
+                roundTrip: rt,
+                error: passed ? undefined : (rt.diffDescription || 'Extracted response payload did not match submitted vector.'),
+              });
+            }
+
+            // Case B: Direct Raw-Text Response
+            // Compare extracted raw response bytes against expected UTF-8 payload bytes
+            let extractedRaw = fullRawBuffer;
+            const framing = options.outputFraming || 'exact';
+            if (framing === 'strip-trailing-newline') {
+              if (extractedRaw.length >= 2 && extractedRaw[extractedRaw.length - 2] === 0x0D && extractedRaw[extractedRaw.length - 1] === 0x0A) {
+                extractedRaw = extractedRaw.subarray(0, extractedRaw.length - 2);
+              } else if (extractedRaw.length >= 1 && (extractedRaw[extractedRaw.length - 1] === 0x0A || extractedRaw[extractedRaw.length - 1] === 0x0D)) {
+                extractedRaw = extractedRaw.subarray(0, extractedRaw.length - 1);
+              }
+            } else if (framing === 'trim') {
+              let startIdx = 0;
+              let endIdx = extractedRaw.length;
+              while (startIdx < endIdx && [0x20, 0x09, 0x0A, 0x0D].includes(extractedRaw[startIdx])) {
+                startIdx++;
+              }
+              while (endIdx > startIdx && [0x20, 0x09, 0x0A, 0x0D].includes(extractedRaw[endIdx - 1])) {
+                endIdx--;
+              }
+              extractedRaw = extractedRaw.subarray(startIdx, endIdx);
+            }
+
+            if (extractedRaw.length === 0) {
               return safeResolve({
                 testCase: tc,
                 outcome: 'inconclusive',
@@ -342,16 +490,17 @@ export class TestRunner {
                 statusCode,
                 durationMs,
                 receivedPayload: responseBody,
-                inconclusiveReason: 'Server returned HTTP 2xx, but response contained no echoable data to verify byte-preservation.',
+                receivedBytes: fullRawBuffer,
+                inconclusiveReason: 'Server returned HTTP 2xx raw response, but body was empty.',
               });
             }
 
-            // Verify Round Trip between expected payload and extracted payload
-            const rt = this.roundTripVerifier.verify(tc.payload, extractedPayload);
+            const expectedRawBytes = Buffer.from(tc.payload, 'utf8');
+            const rt = this.roundTripVerifier.verify(expectedRawBytes, extractedRaw);
             const passed = rt.identical;
             const outcome: TestOutcome = passed ? 'passed' : 'failed';
 
-            safeResolve({
+            return safeResolve({
               testCase: tc,
               outcome,
               passed,
@@ -360,11 +509,11 @@ export class TestRunner {
               statusCode,
               durationMs,
               receivedPayload: responseBody,
-              extractedPayload,
-              receivedBytes: Buffer.concat(bodyChunks),
-              extractedBytes: Buffer.from(extractedPayload, 'utf8'),
+              extractedPayload: responseBody,
+              receivedBytes: fullRawBuffer,
+              extractedBytes: extractedRaw,
               roundTrip: rt,
-              error: passed ? undefined : (rt.diffDescription || 'Extracted response payload did not match submitted vector.'),
+              error: passed ? undefined : (rt.diffDescription || 'Extracted raw response bytes did not match expected UTF-8 payload bytes.'),
             });
           });
         }

@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary
 
-Packaging integrity was audited and verified via `npm pack --dry-run` following the fourth and final critical engineering remediation wave.
+Packaging integrity was audited and verified via `npm pack --dry-run` following the fifth engineering remediation wave (strict HTTP byte integrity and UTF-8 validation).
 
 **Key Verification Invariants:**
 1. **Clean Distribution Scope:** Only compiled build artifacts (`dist/`), documentation (`README.md`), the license (`LICENSE`), and manifest (`package.json`) are packed into the tarball.
@@ -40,8 +40,8 @@ npm notice 13.2kB dist/cli/index.js
 npm notice 10.0kB dist/cli/index.js.map
 npm notice 1.9kB dist/cli/runner.d.ts
 npm notice 775B dist/cli/runner.d.ts.map
-npm notice 25.3kB dist/cli/runner.js
-npm notice 17.3kB dist/cli/runner.js.map
+npm notice 33.7kB dist/cli/runner.js
+npm notice 21.8kB dist/cli/runner.js.map
 npm notice 1.5kB dist/core/boundary-inspector.d.ts
 npm notice 913B dist/core/boundary-inspector.d.ts.map
 npm notice 4.9kB dist/core/boundary-inspector.js
@@ -83,10 +83,10 @@ npm notice Tarball Details
 npm notice name: global-input-lab
 npm notice version: 0.1.0
 npm notice filename: global-input-lab-0.1.0.tgz
-npm notice package size: 59.0 kB
-npm notice unpacked size: 265.8 kB
-npm notice shasum: 6250ce37a3c109f5f45622c9c63a2ea89da1dbe5
-npm notice integrity: sha512-oD95221/5k684[...]ebKruLQfmkdXw==
+npm notice package size: 60.7 kB
+npm notice unpacked size: 278.7 kB
+npm notice shasum: 292bc055515198d07fed3cf4865c24805f152d3f
+npm notice integrity: sha512-Lgdw6Sr5m1UXC[...]pDzGoZOz/d4Gw==
 npm notice total files: 51
 ```
 
