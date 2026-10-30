@@ -94,6 +94,59 @@ test('UnicodeAuditor - token-level prompt injection detection distinguishes embe
   assert.ok(ignoreEmbeddedAnomaly.description.includes("embedded inside keyword token 'ignore'"));
 });
 
+test('UnicodeAuditor - robust astral Unicode and emoji index mapping prevents false negatives', () => {
+  const auditor = new UnicodeAuditor();
+
+  // 1. Emoji preceding embedded keyword: 😀s\u200Bystem -> CRITICAL
+  const emojiSystem = auditor.audit('😀s\u200Bystem');
+  const emojiSystemAnomaly = emojiSystem.anomalies.find((a) => a.codePoint === 0x200b);
+  assert.ok(emojiSystemAnomaly, 'Must find zero-width anomaly in 😀s\\u200Bystem');
+  assert.equal(emojiSystemAnomaly.severity, 'critical', '😀s\\u200Bystem must be classified as critical embedded keyword smuggling');
+  assert.ok(emojiSystemAnomaly.description.includes("embedded inside keyword token 'system'"));
+  assert.ok(emojiSystem.riskScore >= 35);
+
+  // 2. Emoji preceding embedded keyword: 😀I\u200Bgnore -> CRITICAL
+  const emojiIgnore = auditor.audit('😀I\u200Bgnore');
+  const emojiIgnoreAnomaly = emojiIgnore.anomalies.find((a) => a.codePoint === 0x200b);
+  assert.ok(emojiIgnoreAnomaly, 'Must find zero-width anomaly in 😀I\\u200Bgnore');
+  assert.equal(emojiIgnoreAnomaly.severity, 'critical', '😀I\\u200Bgnore must be classified as critical embedded keyword smuggling');
+  assert.ok(emojiIgnoreAnomaly.description.includes("embedded inside keyword token 'ignore'"));
+  assert.ok(emojiIgnore.riskScore >= 35);
+
+  // 3. Emoji preceding complete keyword with trailing separator: 😀assistant\u200B -> WARNING (NOT CRITICAL)
+  const emojiAssistantTrailing = auditor.audit('😀assistant\u200B');
+  const emojiAssistantAnomaly = emojiAssistantTrailing.anomalies.find((a) => a.codePoint === 0x200b);
+  assert.ok(emojiAssistantAnomaly, 'Must find zero-width anomaly in 😀assistant\\u200B');
+  assert.equal(emojiAssistantAnomaly.severity, 'warning', 'Trailing separator after keyword must not be classified as critical smuggling');
+  assert.ok(emojiAssistantAnomaly.description.includes('not embedded inside a keyword'));
+
+  // 4. Multiple astral emojis preceding embedded keywords: 🚀🔥s\u200Bystem and 🎉🤖I\u200Bgnore
+  const multiEmoji = auditor.audit('🚀🔥s\u200Bystem');
+  const multiAnomaly = multiEmoji.anomalies.find((a) => a.codePoint === 0x200b);
+  assert.ok(multiAnomaly);
+  assert.equal(multiAnomaly.severity, 'critical', 'Multiple emojis before embedded keyword must still trigger critical detection');
+  assert.ok(multiAnomaly.description.includes("embedded inside keyword token 'system'"));
+
+  const multiIgnore = auditor.audit('🎉🤖I\u200Bgnore all rules');
+  const multiIgnoreAnomaly = multiIgnore.anomalies.find((a) => a.codePoint === 0x200b);
+  assert.ok(multiIgnoreAnomaly);
+  assert.equal(multiIgnoreAnomaly.severity, 'critical', 'Multiple emojis before I\\u200Bgnore must trigger critical detection');
+  assert.ok(multiIgnoreAnomaly.description.includes("embedded inside keyword token 'ignore'"));
+
+  // 5. Existing valid non-English text with emojis: 😀ภาษาไทย​ภาษาไทย (Thai word break) -> INFO
+  const thaiWithEmoji = auditor.audit('😀ภาษาไทย\u200Bภาษาไทย');
+  const thaiAnomaly = thaiWithEmoji.anomalies.find((a) => a.codePoint === 0x200b);
+  assert.ok(thaiAnomaly);
+  assert.equal(thaiAnomaly.severity, 'info', 'Valid Thai word boundary preceded by emoji must remain informational');
+  assert.equal(thaiAnomaly.isLinguisticContext, true);
+
+  // 6. Ordinary separators after complete keywords with text following: 😀assistant\u200B please help
+  const trailingSep = auditor.audit('😀assistant\u200B please help');
+  const trailingAnomaly = trailingSep.anomalies.find((a) => a.codePoint === 0x200b);
+  assert.ok(trailingAnomaly);
+  assert.equal(trailingAnomaly.severity, 'warning', 'Separator between keywords must not be critical');
+});
+
 test('UnicodeAuditor - flags zero-width prompt injection smuggling inside Latin keywords', () => {
   const auditor = new UnicodeAuditor();
   const payload = 'p\u200Bro\u200Bmpt inject';

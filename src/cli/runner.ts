@@ -361,6 +361,8 @@ export class TestRunner {
               durationMs,
               receivedPayload: responseBody,
               extractedPayload,
+              receivedBytes: Buffer.concat(bodyChunks),
+              extractedBytes: Buffer.from(extractedPayload, 'utf8'),
               roundTrip: rt,
               error: passed ? undefined : (rt.diffDescription || 'Extracted response payload did not match submitted vector.'),
             });
@@ -551,21 +553,46 @@ export class TestRunner {
           });
         }
 
-        // Apply explicit output framing policy
-        let extractedPayload: string;
+        const rawStdoutBuffer = Buffer.concat(stdoutChunks);
+        const expectedBuffer = Buffer.from(tc.payload, 'utf8');
+
+        // Apply explicit output framing policy at the raw byte level
+        let extractedBuffer: Buffer;
         if (framing === 'exact') {
           // Default: exact preservation - NEVER silently trim whitespace!
-          extractedPayload = stdout;
+          extractedBuffer = rawStdoutBuffer;
         } else if (framing === 'strip-trailing-newline') {
-          // Strip only a single trailing newline if present, preserving leading whitespace
-          extractedPayload = stdout.replace(/\r?\n$/, '');
+          // Strip only a single trailing \r\n or \n if present, preserving leading whitespace
+          if (rawStdoutBuffer.length >= 2 && rawStdoutBuffer[rawStdoutBuffer.length - 2] === 0x0d && rawStdoutBuffer[rawStdoutBuffer.length - 1] === 0x0a) {
+            extractedBuffer = rawStdoutBuffer.subarray(0, rawStdoutBuffer.length - 2);
+          } else if (rawStdoutBuffer.length >= 1 && rawStdoutBuffer[rawStdoutBuffer.length - 1] === 0x0a) {
+            extractedBuffer = rawStdoutBuffer.subarray(0, rawStdoutBuffer.length - 1);
+          } else {
+            extractedBuffer = rawStdoutBuffer;
+          }
         } else {
-          // Explicit 'trim' opted in
-          extractedPayload = stdout.trim();
+          // Explicit 'trim' opted in: strip leading and trailing ASCII whitespace
+          let s = 0;
+          while (s < rawStdoutBuffer.length && [0x20, 0x09, 0x0a, 0x0d].includes(rawStdoutBuffer[s])) {
+            s++;
+          }
+          let e = rawStdoutBuffer.length;
+          while (e > s && [0x20, 0x09, 0x0a, 0x0d].includes(rawStdoutBuffer[e - 1])) {
+            e--;
+          }
+          extractedBuffer = rawStdoutBuffer.subarray(s, e);
         }
 
-        const rt = this.roundTripVerifier.verify(tc.payload, extractedPayload);
-        const passed = rt.identical;
+        // Direct raw byte comparison BEFORE string decoding
+        const byteExactMatch = extractedBuffer.equals(expectedBuffer);
+
+        // Decode string representations for payload extraction and display
+        const receivedPayload = rawStdoutBuffer.toString('utf8');
+        const extractedPayload = extractedBuffer.toString('utf8');
+
+        // RoundTrip verification passing raw byte buffers directly to avoid re-encoding mask
+        const rt = this.roundTripVerifier.verify(expectedBuffer, extractedBuffer);
+        const passed = byteExactMatch && rt.identical;
 
         safeResolve({
           testCase: tc,
@@ -574,10 +601,12 @@ export class TestRunner {
           transportOk: true,
           dataPreserved: passed,
           durationMs,
-          receivedPayload: stdout,
+          receivedPayload,
           extractedPayload,
+          receivedBytes: rawStdoutBuffer,
+          extractedBytes: extractedBuffer,
           roundTrip: rt,
-          error: passed ? undefined : (rt.diffDescription || 'Process output did not match input payload.'),
+          error: passed ? undefined : (rt.diffDescription || 'Process output raw byte sequence did not match input payload.'),
         });
       });
     });

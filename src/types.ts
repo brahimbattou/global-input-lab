@@ -179,6 +179,9 @@ export interface RoundTripResult {
   lengthDelta: number;
   introducedReplacementChar: boolean; // Detected U+FFFD (Mojibake or invalid decode)
   diffDescription?: string;
+  expectedBytesHex?: string;
+  receivedBytesHex?: string;
+  firstByteMismatchOffset?: number;
 }
 
 export type TestCategory =
@@ -244,6 +247,8 @@ export interface SingleTestResult {
   durationMs: number;
   receivedPayload?: string;
   extractedPayload?: string;
+  receivedBytes?: Buffer;
+  extractedBytes?: Buffer;
   roundTrip?: RoundTripResult;
   inconclusiveReason?: string;
   error?: string;

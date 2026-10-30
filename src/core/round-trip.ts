@@ -9,49 +9,86 @@ import { RoundTripResult } from '../types.js';
 
 export class RoundTripVerifier {
   /**
-   * Compares an input string with a returned/stored string to verify round-trip fidelity.
+   * Compares an input string or raw byte buffer with a returned/stored string or raw buffer
+   * to verify byte-exact round-trip fidelity.
    */
-  public verify(original: string, processed: string): RoundTripResult {
-    const identical = original === processed;
-    const originalBuf = Buffer.from(original, 'utf8');
-    const processedBuf = Buffer.from(processed, 'utf8');
-    const bytePreserved = originalBuf.equals(processedBuf);
-    const lengthDelta = processed.length - original.length;
+  public verify(original: string | Buffer, processed: string | Buffer): RoundTripResult {
+    const originalBuf = Buffer.isBuffer(original) ? original : Buffer.from(original, 'utf8');
+    const processedBuf = Buffer.isBuffer(processed) ? processed : Buffer.from(processed, 'utf8');
 
-    const hadReplacementBefore = original.includes('\uFFFD');
-    const hasReplacementNow = processed.includes('\uFFFD');
-    const introducedReplacementChar = !hadReplacementBefore && hasReplacementNow;
+    const originalStr = Buffer.isBuffer(original) ? original.toString('utf8') : original;
+    const processedStr = Buffer.isBuffer(processed) ? processed.toString('utf8') : processed;
+
+    const bytePreserved = originalBuf.equals(processedBuf);
+    const identical = bytePreserved && (originalStr === processedStr);
+    const lengthDelta = processedStr.length - originalStr.length;
+
+    const hadReplacementBefore = originalStr.includes('\uFFFD');
+    const hasReplacementNow = processedStr.includes('\uFFFD');
+    const introducedReplacementChar = (!hadReplacementBefore && hasReplacementNow) || (!bytePreserved && hasReplacementNow);
 
     let diffDescription: string | undefined;
+    let firstByteMismatchOffset: number | undefined;
+    let expectedBytesHex: string | undefined;
+    let receivedBytesHex: string | undefined;
 
-    if (!identical) {
-      // Pinpoint first mismatch
-      const maxLen = Math.max(original.length, processed.length);
-
-      for (let i = 0; i < maxLen; i++) {
-        const c1 = original[i];
-        const c2 = processed[i];
-        if (c1 !== c2) {
-          const origHex = c1 ? 'U+' + c1.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0') : 'END';
-          const procHex = c2 ? 'U+' + c2.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0') : 'END';
-          diffDescription = `Mismatch at character index ${i}: expected '${c1 ?? ''}' (${origHex}), got '${c2 ?? ''}' (${procHex}). Original length: ${original.length}, Processed length: ${processed.length}.`;
-          break;
+    if (!bytePreserved || !identical) {
+      let charMismatchDesc = '';
+      if (!identical || originalStr !== processedStr) {
+        const maxLen = Math.max(originalStr.length, processedStr.length);
+        for (let i = 0; i < maxLen; i++) {
+          const c1 = originalStr[i];
+          const c2 = processedStr[i];
+          if (c1 !== c2) {
+            const origHex = c1 ? 'U+' + c1.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0') : 'END';
+            const procHex = c2 ? 'U+' + c2.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0') : 'END';
+            charMismatchDesc = `Mismatch at character index ${i}: expected '${c1 ?? ''}' (${origHex}), got '${c2 ?? ''}' (${procHex}). Original length: ${originalStr.length}, Processed length: ${processedStr.length}. `;
+            break;
+          }
         }
       }
 
-      if (introducedReplacementChar) {
-        diffDescription += ' CRITICAL: Unicode replacement character (U+FFFD) was introduced, confirming byte truncation or encoding corruption.';
+      let byteMismatchDesc = '';
+      if (!bytePreserved) {
+        const minLen = Math.min(originalBuf.length, processedBuf.length);
+        let mismatchIdx = -1;
+        for (let i = 0; i < minLen; i++) {
+          if (originalBuf[i] !== processedBuf[i]) {
+            mismatchIdx = i;
+            break;
+          }
+        }
+        if (mismatchIdx === -1 && originalBuf.length !== processedBuf.length) {
+          mismatchIdx = minLen;
+        }
+
+        firstByteMismatchOffset = mismatchIdx;
+        const expByte = mismatchIdx < originalBuf.length ? '0x' + originalBuf[mismatchIdx].toString(16).toUpperCase().padStart(2, '0') : 'EOF';
+        const recByte = mismatchIdx < processedBuf.length ? '0x' + processedBuf[mismatchIdx].toString(16).toUpperCase().padStart(2, '0') : 'EOF';
+        expectedBytesHex = originalBuf.subarray(0, 16).toString('hex');
+        receivedBytesHex = processedBuf.subarray(0, 16).toString('hex');
+
+        byteMismatchDesc = `Byte mismatch at offset ${mismatchIdx}: expected ${expByte}, received ${recByte} (expected len: ${originalBuf.length} bytes, received len: ${processedBuf.length} bytes). `;
+      }
+
+      diffDescription = (charMismatchDesc + byteMismatchDesc).trim();
+
+      if (introducedReplacementChar || (!hadReplacementBefore && hasReplacementNow) || (!bytePreserved && hasReplacementNow)) {
+        diffDescription += ' CRITICAL: Unicode replacement character (U+FFFD) was introduced or invalid UTF-8 bytes were received.';
       }
     }
 
     return {
-      original,
-      processed,
+      original: originalStr,
+      processed: processedStr,
       identical,
       bytePreserved,
       lengthDelta,
       introducedReplacementChar,
       diffDescription,
+      expectedBytesHex,
+      receivedBytesHex,
+      firstByteMismatchOffset,
     };
   }
 

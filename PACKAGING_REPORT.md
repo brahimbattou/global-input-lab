@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary
 
-Packaging integrity was audited and verified via `npm pack --dry-run` following the third and final engineering remediation wave.
+Packaging integrity was audited and verified via `npm pack --dry-run` following the fourth and final critical engineering remediation wave.
 
 **Key Verification Invariants:**
 1. **Clean Distribution Scope:** Only compiled build artifacts (`dist/`), documentation (`README.md`), the license (`LICENSE`), and manifest (`package.json`) are packed into the tarball.
@@ -36,12 +36,12 @@ npm notice 8.4kB dist/cli/formatters.js
 npm notice 8.8kB dist/cli/formatters.js.map
 npm notice 223B dist/cli/index.d.ts
 npm notice 124B dist/cli/index.d.ts.map
-npm notice 12.5kB dist/cli/index.js
-npm notice 9.4kB dist/cli/index.js.map
+npm notice 13.2kB dist/cli/index.js
+npm notice 10.0kB dist/cli/index.js.map
 npm notice 1.9kB dist/cli/runner.d.ts
 npm notice 775B dist/cli/runner.d.ts.map
-npm notice 23.3kB dist/cli/runner.js
-npm notice 16.0kB dist/cli/runner.js.map
+npm notice 25.3kB dist/cli/runner.js
+npm notice 17.3kB dist/cli/runner.js.map
 npm notice 1.5kB dist/core/boundary-inspector.d.ts
 npm notice 913B dist/core/boundary-inspector.d.ts.map
 npm notice 4.9kB dist/core/boundary-inspector.js
@@ -50,10 +50,10 @@ npm notice 1.5kB dist/core/homoglyph-detector.d.ts
 npm notice 483B dist/core/homoglyph-detector.d.ts.map
 npm notice 12.0kB dist/core/homoglyph-detector.js
 npm notice 10.7kB dist/core/homoglyph-detector.js.map
-npm notice 780B dist/core/round-trip.d.ts
-npm notice 383B dist/core/round-trip.d.ts.map
-npm notice 3.6kB dist/core/round-trip.js
-npm notice 2.7kB dist/core/round-trip.js.map
+npm notice 849B dist/core/round-trip.d.ts
+npm notice 404B dist/core/round-trip.d.ts.map
+npm notice 5.8kB dist/core/round-trip.js
+npm notice 4.8kB dist/core/round-trip.js.map
 npm notice 897B dist/core/sanitizer.d.ts
 npm notice 380B dist/core/sanitizer.d.ts.map
 npm notice 11.0kB dist/core/sanitizer.js
@@ -66,16 +66,16 @@ npm notice 750B dist/core/test-suites.d.ts
 npm notice 460B dist/core/test-suites.d.ts.map
 npm notice 14.3kB dist/core/test-suites.js
 npm notice 6.9kB dist/core/test-suites.js.map
-npm notice 1.7kB dist/core/unicode-auditor.d.ts
-npm notice 579B dist/core/unicode-auditor.d.ts.map
-npm notice 23.7kB dist/core/unicode-auditor.js
-npm notice 14.8kB dist/core/unicode-auditor.js.map
+npm notice 1.9kB dist/core/unicode-auditor.d.ts
+npm notice 581B dist/core/unicode-auditor.d.ts.map
+npm notice 24.3kB dist/core/unicode-auditor.js
+npm notice 15.2kB dist/core/unicode-auditor.js.map
 npm notice 2.4kB dist/index.d.ts
 npm notice 1.3kB dist/index.d.ts.map
 npm notice 4.9kB dist/index.js
 npm notice 3.6kB dist/index.js.map
-npm notice 6.5kB dist/types.d.ts
-npm notice 4.5kB dist/types.d.ts.map
+npm notice 6.6kB dist/types.d.ts
+npm notice 4.7kB dist/types.d.ts.map
 npm notice 194B dist/types.js
 npm notice 114B dist/types.js.map
 npm notice 1.4kB package.json
@@ -83,10 +83,10 @@ npm notice Tarball Details
 npm notice name: global-input-lab
 npm notice version: 0.1.0
 npm notice filename: global-input-lab-0.1.0.tgz
-npm notice package size: 56.9 kB
-npm notice unpacked size: 255.3 kB
-npm notice shasum: e2e5e479deb6f22c9cd9b0ba8c05ea3ca31291be
-npm notice integrity: sha512-soFdXjar5AHWv[...]PaUjegV7Wcu9w==
+npm notice package size: 59.0 kB
+npm notice unpacked size: 265.8 kB
+npm notice shasum: 6250ce37a3c109f5f45622c9c63a2ea89da1dbe5
+npm notice integrity: sha512-oD95221/5k684[...]ebKruLQfmkdXw==
 npm notice total files: 51
 ```
 

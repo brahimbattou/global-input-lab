@@ -145,6 +145,8 @@ export class UnicodeAuditor {
   /**
    * Evaluates whether an invisible character at position `pos` is strictly embedded
    * inside a token that reconstructs into a prompt-injection keyword when stripped of formatting.
+   * Uses a 100% consistent Unicode code-point indexing model to ensure that astral characters
+   * (e.g. emojis with surrogate pairs) preceding or surrounding the keyword never cause false negatives.
    * Prevents false positives where the separator merely follows a complete keyword or separates words.
    */
   private checkEmbeddedKeywordSmuggling(chars: string[], pos: number): { isEmbedded: boolean; keyword?: string; token?: string } {
@@ -163,7 +165,7 @@ export class UnicodeAuditor {
     const tokenChars = chars.slice(start, end + 1);
     const relPos = pos - start;
 
-    let cleanToken = '';
+    const cleanCodePoints: string[] = [];
     const cleanToOrigIndex: number[] = [];
 
     for (let i = 0; i < tokenChars.length; i++) {
@@ -173,28 +175,37 @@ export class UnicodeAuditor {
         continue;
       }
       cleanToOrigIndex.push(i);
-      cleanToken += ch;
+      cleanCodePoints.push(ch.toLowerCase());
     }
 
-    const lowerClean = cleanToken.toLowerCase();
-
     for (const kw of PROMPT_INJECTION_KEYWORDS) {
-      let kwIdx = lowerClean.indexOf(kw);
-      while (kwIdx !== -1) {
-        const kwEndIdx = kwIdx + kw.length - 1;
-        const origKwStart = cleanToOrigIndex[kwIdx];
-        const origKwEnd = cleanToOrigIndex[kwEndIdx];
+      const kwChars = Array.from(kw.toLowerCase());
+      if (kwChars.length === 0 || kwChars.length > cleanCodePoints.length) {
+        continue;
+      }
 
-        // Character is strictly embedded inside this keyword if the keyword starts BEFORE relPos and ends AFTER relPos.
-        if (origKwStart < relPos && origKwEnd > relPos) {
-          return {
-            isEmbedded: true,
-            keyword: kw,
-            token: tokenChars.join(''),
-          };
+      for (let sIdx = 0; sIdx <= cleanCodePoints.length - kwChars.length; sIdx++) {
+        let match = true;
+        for (let k = 0; k < kwChars.length; k++) {
+          if (cleanCodePoints[sIdx + k] !== kwChars[k]) {
+            match = false;
+            break;
+          }
         }
 
-        kwIdx = lowerClean.indexOf(kw, kwIdx + 1);
+        if (match) {
+          const origKwStart = cleanToOrigIndex[sIdx];
+          const origKwEnd = cleanToOrigIndex[sIdx + kwChars.length - 1];
+
+          // Character is strictly embedded inside this keyword if the keyword starts BEFORE relPos and ends AFTER relPos.
+          if (origKwStart < relPos && origKwEnd > relPos) {
+            return {
+              isEmbedded: true,
+              keyword: kw,
+              token: tokenChars.join(''),
+            };
+          }
+        }
       }
     }
 

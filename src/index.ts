@@ -123,7 +123,7 @@ export function sanitizeText(text: string, options?: SanitizeOptions): SanitizeR
 /**
  * Verifies byte and string round-trip preservation
  */
-export function verifyRoundTrip(original: string, processed: string): RoundTripResult {
+export function verifyRoundTrip(original: string | Buffer, processed: string | Buffer): RoundTripResult {
   return getRoundTrip().verify(original, processed);
 }
 

@@ -201,4 +201,55 @@ test('probeCommand - bounds and safely handles large stderr output without memor
   assert.equal(res.transportOk, false);
   assert.ok(res.error?.includes('stderr exceeded maximum permitted size of 500 bytes'));
 });
+test('probeCommand - rejects U+FFFD payload when output is invalid byte 0x80 instead of 0xEF 0xBF 0xBD', async () => {
+  const runner = new TestRunner();
+  const tc: TestCase = { ...SAMPLE_TC, id: 'repl-char-test', payload: '\uFFFD' };
+  // Subprocess outputs single invalid UTF-8 byte 0x80 instead of 3-byte sequence [0xEF, 0xBF, 0xBD]
+  const cmd = `node -e "process.stdout.write(Buffer.from([0x80]));"`;
+  const res = await runner.probeCommand(tc, cmd, { outputFraming: 'exact' });
+
+  assert.equal(res.outcome, 'failed', 'Invalid byte 0x80 must fail even though decoding yields replacement char');
+  assert.equal(res.passed, false);
+  assert.equal(res.dataPreserved, false);
+  assert.ok(res.error?.includes('Byte mismatch at offset 0'));
+  assert.ok(res.error?.includes('expected 0xEF, received 0x80'));
+});
+
+test('probeCommand - accepts valid UTF-8 encoding of U+FFFD (0xEF 0xBF 0xBD)', async () => {
+  const runner = new TestRunner();
+  const tc: TestCase = { ...SAMPLE_TC, id: 'valid-repl-char', payload: '\uFFFD' };
+  const cmd = `node -e "process.stdout.write(Buffer.from([0xEF, 0xBF, 0xBD]));"`;
+  const res = await runner.probeCommand(tc, cmd, { outputFraming: 'exact' });
+
+  assert.equal(res.outcome, 'passed', 'Properly encoded U+FFFD must pass byte verification');
+  assert.equal(res.passed, true);
+  assert.equal(res.dataPreserved, true);
+  assert.equal(res.extractedPayload, '\uFFFD');
+});
+
+test('probeCommand - detects invalid continuation bytes in multi-byte sequences', async () => {
+  const runner = new TestRunner();
+  const tc: TestCase = { ...SAMPLE_TC, id: 'invalid-continuation', payload: '€' }; // expected [0xE2, 0x82, 0xAC]
+  const cmd = `node -e "process.stdout.write(Buffer.from([0xE2, 0x28, 0xAC]));"`; // 0x28 is invalid continuation byte
+  const res = await runner.probeCommand(tc, cmd, { outputFraming: 'exact' });
+
+  assert.equal(res.outcome, 'failed');
+  assert.equal(res.passed, false);
+  assert.equal(res.dataPreserved, false);
+  assert.ok(res.error?.includes('Byte mismatch at offset 1'));
+  assert.ok(res.error?.includes('expected 0x82, received 0x28'));
+});
+
+test('probeCommand - detects truncated UTF-8 sequences', async () => {
+  const runner = new TestRunner();
+  const tc: TestCase = { ...SAMPLE_TC, id: 'truncated-seq', payload: '€' }; // expected [0xE2, 0x82, 0xAC] (3 bytes)
+  const cmd = `node -e "process.stdout.write(Buffer.from([0xE2, 0x82]));"`; // missing 3rd byte
+  const res = await runner.probeCommand(tc, cmd, { outputFraming: 'exact' });
+
+  assert.equal(res.outcome, 'failed');
+  assert.equal(res.passed, false);
+  assert.equal(res.dataPreserved, false);
+  assert.ok(res.error?.includes('Byte mismatch at offset 2'));
+  assert.ok(res.error?.includes('expected 0xAC, received EOF'));
+});
 

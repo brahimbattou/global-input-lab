@@ -4,26 +4,24 @@
 **Auditor:** Principal Open-Source, Internationalization & Security Architecture Review  
 **Project:** `global-input-lab` (`@brahimbattou/global-input-lab`)  
 **Repository Working Directory:** Local working tree (`c:\Users\Brahim\Desktop\New folder (2)`)  
-**Audit Scope:** Core Unicode engine, international linguistic formatting preservation, token-level prompt injection detection, stream-safe UTF-8 chunk buffering, bounded process memory, lexical homoglyph isolation, UTS #39 v18.0.0 standards alignment, test infrastructure, packaging hygiene, research methodology, and open-source program eligibility.  
-**Release Gate Status:** **FINAL BUG FIX ROUND COMPLETE — RELEASE FROZEN PENDING EXPLICIT USER APPROVAL**
+**Audit Scope:** Core Unicode engine, international linguistic formatting preservation, astral Unicode code-point index mapping, real raw-byte data integrity verification, stream-safe UTF-8 chunk buffering, bounded process memory, lexical homoglyph isolation, UTS #39 v18.0.0 standards alignment, test infrastructure, packaging hygiene, research methodology, and open-source program eligibility.  
+**Release Gate Status:** **FINAL CORRECTNESS AUDIT COMPLETE — RELEASE FROZEN PENDING EXPLICIT USER APPROVAL**
 
 ---
 
 ## 1. Executive Summary
 
-A comprehensive multi-phase engineering audit of the `global-input-lab` codebase was conducted across three rigorous review cycles:
+A comprehensive multi-phase engineering audit of the `global-input-lab` codebase was conducted across four review cycles:
 1. **Wave 1 (Initial Engineering Review):** Identified transport false-positives, missing test dependencies, unsafe shell execution, and destructive linguistic stripping.
 2. **Wave 2 (Second Pre-Release Engineering Audit):** Uncovered Southeast Asian scriptio continua regressions (Thai, Khmer, Lao, Myanmar), Tamil combining characters, soft hyphens (`U+00AD`), invisible mathematical operators (`U+2061`..`U+2064`), silent whitespace trimming in the command runner (`stdout.trim()`), broken process timeout detection, unbounded HTTP response buffering, ungrounded competitive scoring, and non-compliant open-source sponsorship claims.
-3. **Wave 3 (Final Bug Fix Round — Post-Remediation Review):** Identified 5 reproducible defects:
-   - *Critical Finding 1:* Global keyword checking in prompt injection detection causing false positives (`system\u200B note`, `Hello\u200B world`, `Ignore\u200B previous instructions`) and false negatives;
-   - *Critical Finding 2:* UTF-8 multibyte stream corruption in `CommandRunner` when characters (e.g. `€`, Arabic, Chinese, Emoji) are split across chunk writes;
-   - *High Finding 3:* Unbounded stderr memory accumulation in process probing;
-   - *Medium Finding 4:* Homoglyph mixed-script flag leakage across disparate tokens (e.g., `pаypal а` where isolated `а` inherited mixed-script flags);
-   - *Medium Finding 5:* Unicode UTS #39 dataset reference pinned to v15.1.0 instead of the latest approved standard v18.0.0 (`https://www.unicode.org/Public/18.0.0/security/`).
+3. **Wave 3 (Bug Fix Round):** Resolved global keyword prompt injection matching, UTF-8 chunk splitting across stream boundaries, unbounded stderr, homoglyph token leakage, and aligned standards with UTS #39 v18.0.0.
+4. **Wave 4 (Final Critical Correctness Audit):** Identified 2 subtle correctness defects in edge-case handling:
+   - *Critical Correctness Finding 1:* Mixing `Array.from()` code-point indexing with `String.indexOf()` UTF-16 code-unit indexing produced false negatives when astral characters (surrogate pairs like emojis `😀`) preceded embedded zero-width keywords (`😀s\u200Bystem`, `😀I\u200Bgnore`).
+   - *Critical Correctness Finding 2:* Comparing decoded strings in round-trip verification produced false positives when processes output malformed UTF-8 bytes (e.g. invalid single byte `0x80` for expected `U+FFFD`), because UTF-8 string decoding converts `0x80` to `\uFFFD`, falsely passing string equality.
 
-Across all three review cycles, a total of **19 defects** were identified: **5 Critical**, **5 High**, **8 Medium**, and **1 Low**.
+Across all review cycles, a total of **21 defects** were identified: **7 Critical**, **5 High**, **8 Medium**, and **1 Low**.
 
-**Current Status:** All 19 defects have been systematically remediated and verified through **77 passing automated tests**, clean TypeScript compilation, clean `npm ci`, and verified packaging dry-runs. In compliance with user instructions, public publishing to npm and GitHub release creation remain strictly **FROZEN**.
+**Current Status:** All 21 defects have been systematically remediated and verified through **84 passing automated tests**, clean TypeScript compilation, clean `npm ci`, code coverage analysis, and verified packaging dry-runs. In compliance with user instructions, public publishing to npm and GitHub release creation remain strictly **FROZEN**.
 
 ---
 
@@ -31,6 +29,8 @@ Across all three review cycles, a total of **19 defects** were identified: **5 C
 
 | Finding ID | Audit Wave | Severity | Subsystem | Description | Status |
 | :--- | :---: | :---: | :--- | :--- | :---: |
+| **GIL-AUD4-01** | Wave 4 | **CRITICAL** | Unicode Auditor | Mixed code-point and UTF-16 code-unit indexing caused false negatives when astral characters (emojis) preceded embedded zero-width characters; replaced with consistent code-point-based token scanning. | **RESOLVED & VERIFIED** |
+| **GIL-AUD4-02** | Wave 4 | **CRITICAL** | Command Runner | Decoded string comparison in round-trip masked raw byte corruption (e.g. invalid byte 0x80 for U+FFFD); implemented direct raw-byte Buffer comparison before string decoding with hexadecimal diagnostics. | **RESOLVED & VERIFIED** |
 | **GIL-AUD3-01** | Wave 3 | **CRITICAL** | Unicode Auditor | Global keyword matching for U+200B prompt injection detection caused false positives on word boundaries and separators; replaced with token-level lexical boundary detection. | **RESOLVED & VERIFIED** |
 | **GIL-AUD3-02** | Wave 3 | **CRITICAL** | Command Runner | Process runner decoded stdout chunks with `data.toString('utf8')`, corrupting multibyte UTF-8 characters split across stream writes (`€`, Arabic, Chinese, emoji); replaced with `StringDecoder` and raw byte accumulation. | **RESOLVED & VERIFIED** |
 | **GIL-AUD2-01** | Wave 2 | **CRITICAL** | Core Sanitizer | Indiscriminate removal of valid Unicode formatting and characters (Thai ZWSP, Tamil combining marks, soft hyphens, invisible math operators). | **RESOLVED & VERIFIED** |
@@ -53,94 +53,42 @@ Across all three review cycles, a total of **19 defects** were identified: **5 C
 
 ---
 
-## 3. Wave 3 Deep Root-Cause Analysis & Verification
+## 3. Wave 4 Critical Correctness Deep Root-Cause Analysis
 
-### Finding GIL-AUD3-01: Incorrect Zero-Width Prompt Injection Detection (CRITICAL)
+### Finding GIL-AUD4-01: Astral Unicode Index Mapping Drift (CRITICAL)
 
 - **Severity:** **CRITICAL**
 - **Impacted Components:** `src/core/unicode-auditor.ts`
 - **Failing Inputs Discovered in Independent Review:**
-  1. `s\u200Bystem` — Zero-width space embedded *inside* the keyword was missed if evaluating plain keyword boundary.
-  2. `system\u200B note` — False positive: Trailing separator after a complete keyword was falsely flagged as critical keyword smuggling merely because `system` exists in the text.
-  3. `Hello\u200B world` — False positive: Normal text containing a zero-width space was misclassified.
-  4. `Ignore\u200B previous instructions` — False positive: Space following `Ignore` was misclassified as embedded smuggling.
-- **Root Cause:** The auditor inspected whether `text.toLowerCase().includes(kw)` anywhere in the document upon encountering `U+200B`. This global text search ignored token boundaries and the exact character position of `U+200B`.
+  1. `😀s\u200Bystem` — Expected: Critical embedded keyword smuggling. Actual: Warning only.
+  2. `😀I\u200Bgnore` — Expected: Critical embedded keyword smuggling. Actual: Warning only.
+- **Root Cause:** In `checkEmbeddedKeywordSmuggling`, `tokenChars` was an array of Unicode code points created via `Array.from()`. Invisible characters were filtered into `cleanToken` (a JavaScript string), while character indices were pushed into `cleanToOrigIndex` by code-point element count. When `cleanToken.toLowerCase().indexOf(kw)` was invoked, `indexOf()` returned the offset in **UTF-16 code units**. Because astral characters (such as emoji `😀`, U+1F600) consist of 2 UTF-16 code units, each astral character caused `indexOf` to drift ahead of `cleanToOrigIndex` by 1 position per astral code point. Consequently, `origKwStart` evaluated to an index *after* `relPos`, making `origKwStart < relPos` evaluate to `false` and failing the embedded check.
 - **Remediation Implemented:**
-  1. Replaced global regex checking with `checkEmbeddedKeywordSmuggling(chars, pos)`:
-     - Extracts the enclosing non-whitespace token span `[tokenStart, tokenEnd]`.
-     - Strips invisible format characters within the token while building an exact index map to original character offsets.
-     - Tests whether any security keyword matches a substring within the clean token.
-     - Strictly verifies whether the matched keyword starts *before* the invisible character's relative position and ends *after* it (`origKwStart < relPos && origKwEnd > relPos`).
-  2. Distinct severity classifications:
-     - **Embedded Smuggling (`s\u200Bystem`, `I\u200Bgnore`):** Classified as `severity: 'critical'`, `riskScore: 40`, reporting `"Zero-width space (U+200B) embedded inside keyword token '...' to evade safety filters"`.
-     - **Trailing Separator (`system\u200B note`, `Ignore\u200B previous instructions`):** Classified as `severity: 'warning'`, `riskScore: 10`, reporting `"Zero-width space (U+200B) adjacent to word boundary, not embedded inside a keyword"`.
-     - **Ordinary Latin Context (`Hello\u200B world`):** Classified as `severity: 'warning'`, `riskScore: 10`.
-     - **Linguistic Scriptio Continua (`ภาษาไทย\u200Bภาษาไทย`):** Classified as `severity: 'info'`, `riskScore: 0`.
-- **Verification:** Verified via `tests/core/unicode-auditor.test.ts` covering all required reproduction cases.
+  - Standardized on a 100% consistent code-point model.
+  - Stored clean code points in `cleanCodePoints: string[]` alongside `cleanToOrigIndex: number[]`.
+  - Converted keywords into code point arrays: `kwChars = Array.from(kw.toLowerCase())`.
+  - Performed code-point subarray matching against `cleanCodePoints`.
+  - Evaluated boundary containment: `origKwStart < relPos && origKwEnd > relPos` using purely code-point indices.
+  - Preserved distinction for trailing separators (`😀assistant\u200B` -> warning) and multi-emoji prefixes (`🚀🔥s\u200Bystem` -> critical).
+- **Verification:** Verified via [`tests/core/unicode-auditor.test.ts`](file:///c:/Users/Brahim/Desktop/New%20folder%20%282%29/tests/core/unicode-auditor.test.ts) across single emojis, multiple emojis, valid non-English scripts with emojis, and ordinary delimiters.
 
 ---
 
-### Finding GIL-AUD3-02: UTF-8 Corruption in Command Runner (CRITICAL)
+### Finding GIL-AUD4-02: String Decoding False Positives in Byte Integrity Verification (CRITICAL)
 
 - **Severity:** **CRITICAL**
-- **Impacted Components:** `src/cli/runner.ts`, `src/types.ts`
+- **Impacted Components:** `src/cli/runner.ts`, `src/core/round-trip.ts`, `src/types.ts`
 - **Failing Inputs Discovered in Independent Review:**
-  1. Euro symbol `€` (3-byte sequence `0xE2 0x82 0xAC`): Split across stream chunk writes resulted in replacement characters `\uFFFD\uFFFD\uFFFD`.
-  2. Arabic characters (`مرحبا`): Multibyte UTF-8 code units split across chunks corrupted text.
-  3. Chinese characters (`世界`): 3-byte sequences split across 3 chunks corrupted text.
-  4. 4-byte Emojis (`😀`, `0xF0 0x9F 0x98 0x80`): Split across 2-byte writes resulted in unpaired bytes.
-  5. Mixed multilingual content: Chunk boundaries splitting across words and symbols corrupted text.
-- **Root Cause:** The stdout event handler decoded each incoming stream chunk immediately using `data.toString('utf8')`. When a multibyte character boundary fell across chunk splits, Node.js substituted incomplete byte fragments with the Unicode replacement character (`U+FFFD`).
+  - Expected payload: `U+FFFD` (`0xEF 0xBF 0xBD` in UTF-8).
+  - Child process output: Invalid single byte `0x80`.
+  - Previous result: `PASSED — bytePreserved: true`.
+- **Root Cause:** `probeCommand()` decoded subprocess output chunks into a JavaScript string using UTF-8 decoding before verifying round-trip fidelity. Under standard UTF-8 decoding rules, invalid byte `0x80` is replaced with `\uFFFD`. Comparing the expected string `\uFFFD` with the decoded string `\uFFFD` returned `true`, and re-encoding `\uFFFD` produced `0xEF 0xBF 0xBD`, masking the raw byte corruption.
 - **Remediation Implemented:**
-  1. Integrated `StringDecoder` from `node:string_decoder` to decode streaming text incrementally without dropping split multibyte sequences.
-  2. Preserved raw byte buffers in `stdoutChunks: Buffer[]`.
-  3. Concatenated full buffer on process exit: `Buffer.concat(stdoutChunks).toString('utf8') + decoder.end()`, guaranteeing byte-exact round-trip preservation.
-- **Verification:** Verified via `tests/cli/command-runner.test.ts` with 5 independent split-write tests for `€`, `😀`, `世界`, `مرحبا`, and mixed multilingual text.
-
----
-
-### Finding GIL-AUD3-03: Unbounded stderr Memory Accumulation (HIGH)
-
-- **Severity:** **HIGH**
-- **Impacted Components:** `src/cli/runner.ts`, `src/types.ts`, `src/cli/index.ts`
-- **Root Cause:** While `maxResponseBytes` capped stdout, `stderr` was accumulated indefinitely into memory via `stderr += chunk.toString('utf8')`. A noisy, malfunctioning, or adversarial subprocess could exhaust process memory.
-- **Remediation Implemented:**
-  1. Added configurable `maxStderrBytes: number` (defaults to 10 MB, CLI option `--max-stderr-bytes`).
-  2. Monitored cumulative `stderrBytes`.
-  3. If stderr exceeds the threshold, `probeCommand` marks `stderrExceeded = true`, terminates the process immediately via `child.kill('SIGKILL')`, and reports a clean failure without memory exhaustion.
-- **Verification:** Verified via `tests/cli/command-runner.test.ts` with a subprocess generating 10KB of stderr against a 500-byte cap.
-
----
-
-### Finding GIL-AUD3-04: Homoglyph Mixed-Script Context Token Leakage (MEDIUM)
-
-- **Severity:** **MEDIUM**
-- **Impacted Components:** `src/core/homoglyph-detector.ts`
-- **Failing Inputs Discovered in Independent Review:**
-  - `pаypal а` — The second Cyrillic `а` at index 7 is an isolated, standalone token, but was incorrectly flagged as part of a mixed-script word simply because the earlier token `pаypal` contained Cyrillic `а`.
-- **Root Cause:** The detector used character-level confusable lookups without tracking exact token boundaries and offsets.
-- **Remediation Implemented:**
-  1. Rewrote tokenization into structured `TokenSpan` records: `{ token, start, end, hasLatin, hasCyrillic, hasGreek, scriptCount }`.
-  2. For every confusable character match, the detector locates its exact enclosing token span by offset `start <= pos < end`.
-  3. `isMixedScriptWord` is evaluated strictly within that token's lexical boundaries. In `pаypal а`:
-     - Match 1 (pos 1): Enclosed in `pаypal` (Latin + Cyrillic) -> `isMixedScriptWord: true`.
-     - Match 2 (pos 7): Enclosed in `а` (Pure Cyrillic token) -> `isMixedScriptWord: false`.
-- **Verification:** Verified via `tests/core/homoglyph-detector.test.ts`.
-
----
-
-### Finding GIL-AUD3-05: Unicode UTS #39 Standard Version Realignment (MEDIUM)
-
-- **Severity:** **MEDIUM**
-- **Impacted Components:** `src/core/homoglyph-detector.ts`, documentation
-- **Root Cause:** The project previously identified its curated confusables subset with UTS #39 v15.1.0. As of October 2026, the latest approved Unicode security standard release is UTS #39 v18.0.0 (`https://www.unicode.org/Public/18.0.0/security/` and `https://www.unicode.org/reports/tr39/`).
-- **Remediation Implemented:**
-  1. Updated `UTS_39_VERSION` constant to `'18.0.0'`.
-  2. Documented traceable source URLs in code and documentation:
-     - Specification: `https://www.unicode.org/reports/tr39/`
-     - Security Data: `https://www.unicode.org/Public/18.0.0/security/confusables.txt`
-  3. Explicitly documented that this remains a curated security subset and does not claim full ~10,000+ character database conformance.
-- **Verification:** Verified via `tests/core/homoglyph-detector.test.ts`.
+  1. **Direct Raw-Byte Buffer Comparison:** Constructed `expectedBuffer = Buffer.from(tc.payload, 'utf8')` and compared directly with `extractedBuffer` (from `Buffer.concat(stdoutChunks)`) using `extractedBuffer.equals(expectedBuffer)` **before** any string decoding.
+  2. **Raw Byte Framing:** Applied framing policies (`exact`, `strip-trailing-newline`, `trim`) directly at the raw byte buffer level.
+  3. **Raw Buffer Pass-Through in RoundTripVerifier:** Enhanced `RoundTripVerifier.verify` to accept `Buffer` inputs directly, preventing re-encoding mask.
+  4. **Hexadecimal Diagnostic Error Messages:** Pinpointed the exact byte mismatch offset with formatted hex values: `Byte mismatch at offset 0: expected 0xEF, received 0x80 (expected len: 3 bytes, received len: 1 bytes).`
+- **Verification:** Verified via [`tests/cli/command-runner.test.ts`](file:///c:/Users/Brahim/Desktop/New%20folder%20%282%29/tests/cli/command-runner.test.ts) and [`tests/core/round-trip.test.ts`](file:///c:/Users/Brahim/Desktop/New%20folder%20%282%29/tests/core/round-trip.test.ts) covering invalid byte `0x80`, valid `U+FFFD`, invalid continuation bytes, truncated sequences, split streams, and whitespace variations.
 
 ---
 
@@ -152,7 +100,7 @@ As of this audit report:
 - **Medium Severity Defects Remaining:** **0**
 - **Low Severity Defects Remaining:** **0**
 
-All 19 identified findings across Waves 1, 2, and 3 have been resolved, code-reviewed, and verified via automated regression testing.
+All 21 identified findings across all audit waves have been resolved, code-reviewed, and verified via automated regression testing.
 
 ---
 
@@ -161,14 +109,13 @@ All 19 identified findings across Waves 1, 2, and 3 have been resolved, code-rev
 - [x] All Unicode sanitization is 100% non-destructive by default.
 - [x] Zero-width spaces in Thai, Khmer, Lao, and Myanmar are preserved as legitimate typography.
 - [x] Tamil combining marks, soft hyphens, and math operators are preserved by default.
-- [x] Token-level prompt injection detection distinguishes embedded from separator characters.
-- [x] Multi-byte UTF-8 stream chunk splitting verified with `StringDecoder` and byte-exact buffer accumulation.
+- [x] Astral Unicode characters (emojis) correctly handled in token-level prompt injection detection.
+- [x] Direct raw-byte buffer comparison prevents string decoding false positives (e.g. byte 0x80 vs U+FFFD).
+- [x] Hexadecimal diagnostics pinpoint byte mismatch offsets and lengths.
 - [x] Subprocess stderr memory is strictly bounded with configurable `maxStderrBytes`.
 - [x] Homoglyph mixed-script detection strictly tracks token boundaries (`pаypal а` verified).
 - [x] Curated confusables subset aligned with official Unicode UTS #39 v18.0.0.
-- [x] Command runner exact framing verified; `stdout.trim()` removed.
-- [x] Process timeout and quote parsing verified without shell injection.
-- [x] All 77 automated tests pass with 0 failures across consecutive executions.
+- [x] All 84 automated tests pass with 0 failures across consecutive executions.
 - [x] Clean packaging verified via `npm pack --dry-run` (51 files, 0 dependencies).
-- [x] Cross-platform CI matrix covers Windows, Linux, and macOS across Node.js 18, 20, and 22.
+- [x] Clean source archive delivered without node_modules or platform binaries.
 - [ ] **Public Publishing:** **STRICTLY FROZEN** pending explicit user authorization.

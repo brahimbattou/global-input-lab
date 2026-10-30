@@ -42,3 +42,29 @@ test('RoundTripVerifier - verifies URI encoding round-trip fidelity', () => {
   assert.equal(result.identical, true);
   assert.equal(result.bytePreserved, true);
 });
+
+test('RoundTripVerifier - direct byte verification detects invalid byte output 0x80 for U+FFFD', () => {
+  const verifier = new RoundTripVerifier();
+  const expectedBuf = Buffer.from('\uFFFD', 'utf8'); // [0xEF, 0xBF, 0xBD]
+  const receivedBuf = Buffer.from([0x80]); // Invalid UTF-8 single byte
+
+  const result = verifier.verify(expectedBuf, receivedBuf);
+
+  assert.equal(result.bytePreserved, false, 'Invalid raw byte 0x80 must not be considered preserved');
+  assert.equal(result.identical, false);
+  assert.equal(result.firstByteMismatchOffset, 0);
+  assert.ok(result.diffDescription?.includes('Byte mismatch at offset 0'));
+  assert.ok(result.diffDescription?.includes('expected 0xEF, received 0x80'));
+});
+
+test('RoundTripVerifier - accepts identical raw byte buffers', () => {
+  const verifier = new RoundTripVerifier();
+  const euroBuf = Buffer.from('€', 'utf8'); // [0xE2, 0x82, 0xAC]
+  const receivedBuf = Buffer.from([0xE2, 0x82, 0xAC]);
+
+  const result = verifier.verify(euroBuf, receivedBuf);
+
+  assert.equal(result.bytePreserved, true);
+  assert.equal(result.identical, true);
+});
+
