@@ -1,11 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { HomoglyphDetector } from '../../src/core/homoglyph-detector.js';
+import { HomoglyphDetector, UTS_39_VERSION } from '../../src/core/homoglyph-detector.js';
 
-test('HomoglyphDetector - detects Cyrillic confusable in Latin text', () => {
+test('HomoglyphDetector - reports UTS #39 version metadata and dataset scope', () => {
+  const detector = new HomoglyphDetector();
+  const report = detector.detect('test');
+
+  assert.equal(report.standardsVersion, `UTS #39 v${UTS_39_VERSION}`);
+  assert.equal(report.datasetScope, 'curated-security-subset');
+});
+
+test('HomoglyphDetector - detects Cyrillic confusable in Latin text with mixed-script flag', () => {
   const detector = new HomoglyphDetector();
 
-  // '\u0430' is Cyrillic small letter a
+  // '\u0430' is Cyrillic small letter a embedded in Latin word "dmin"
   const spoofedAdmin = '\u0430dmin';
   const report = detector.detect(spoofedAdmin);
 
@@ -13,7 +21,51 @@ test('HomoglyphDetector - detects Cyrillic confusable in Latin text', () => {
   assert.equal(report.matches.length, 1);
   assert.equal(report.matches[0].confusableWith, 'a');
   assert.equal(report.matches[0].sourceScript, 'Cyrillic');
+  assert.equal(report.matches[0].isMixedScriptWord, true);
   assert.equal(report.normalizedLatinPreview, 'admin');
+});
+
+test('HomoglyphDetector - distinguishes genuine single-script Cyrillic and Greek from mixed-script spoofing', () => {
+  const detector = new HomoglyphDetector();
+
+  // 100% Cyrillic word: Пушкин (Pushkin)
+  const russianWord = 'Пушкин';
+  const russianReport = detector.detect(russianWord);
+  // Contains lookalikes (e.g. Cyrillic u, sh, k), but is NOT mixed-script
+  assert.ok(russianReport.matches.every((m) => m.isMixedScriptWord === false));
+
+  // 100% Greek word: Αθήνα (Athens)
+  const greekWord = 'Αθήνα';
+  const greekReport = detector.detect(greekWord);
+  assert.ok(greekReport.matches.every((m) => m.isMixedScriptWord === false));
+});
+
+test('HomoglyphDetector - detects Greek, Cherokee, and Armenian cross-script lookalikes', () => {
+  const detector = new HomoglyphDetector();
+
+  // Greek capital Omicron in 'Open'
+  const greekSpoof = '\u039Fpen';
+  const greekReport = detector.detect(greekSpoof);
+  assert.equal(greekReport.matches[0].confusableWith, 'O');
+  assert.equal(greekReport.matches[0].sourceScript, 'Greek');
+
+  // Cherokee letter 'Ꭰ' (U+13A0) resembling Latin 'D'
+  const cherokeeSpoof = '\u13A0ata';
+  const cherokeeReport = detector.detect(cherokeeSpoof);
+  assert.equal(cherokeeReport.matches[0].confusableWith, 'D');
+  assert.equal(cherokeeReport.matches[0].sourceScript, 'Cherokee');
+});
+
+test('HomoglyphDetector - detects mathematical alphanumeric bold characters', () => {
+  const detector = new HomoglyphDetector();
+
+  // Mathematical Bold: 𝐚𝐝𝐦𝐢𝐧
+  const mathAdmin = '\u{1D41A}\u{1D41D}\u{1D426}\u{1D422}\u{1D427}';
+  const report = detector.detect(mathAdmin);
+
+  assert.equal(report.hasHomoglyphs, true);
+  assert.equal(report.normalizedLatinPreview, 'admin');
+  assert.ok(report.matches.some((m) => m.sourceScript === 'Mathematical Alphanumeric'));
 });
 
 test('HomoglyphDetector - correctly verifies safe ASCII strings', () => {

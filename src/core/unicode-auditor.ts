@@ -2,13 +2,20 @@
  * GlobalInputLab - Unicode Auditor
  * Inspects strings for invisible characters, zero-width smuggling,
  * bidirectional overrides, normalization drift, and encoding risks.
- * Non-destructive and standards-aligned (UAX #9, UAX #15, UAX #29, UTS #39).
+ * Context-aware and standards-aligned (UAX #9, UAX #15, UAX #29, UTS #39).
  * (c) 2026 Brahim Battou. MIT License.
  */
 
 import { AuditReport, NormalizationAnalysis, Severity, UnicodeAnomaly } from '../types.js';
 
-// Table of known invisible and zero-width code points
+// Unicode Script Extensions regex tests using standard property escapes
+const SCRIPT_BREAK_REGEX = /[\p{scx=Thai}\p{scx=Khmer}\p{scx=Lao}\p{scx=Myanmar}]/u;
+const COMPLEX_SCRIPT_REGEX = /[\p{scx=Arabic}\p{scx=Hebrew}\p{scx=Devanagari}\p{scx=Bengali}\p{scx=Tamil}\p{scx=Telugu}\p{scx=Kannada}\p{scx=Malayalam}\p{scx=Gujarati}\p{scx=Gurmukhi}\p{scx=Oriya}\p{scx=Sinhala}\p{scx=Tibetan}]/u;
+const EMOJI_REGEX = /[\p{Extended_Pictographic}\uFE0E\uFE0F\u{1F3FB}-\u{1F3FF}]/u;
+
+// Known prompt injection trigger keywords often targeted by zero-width smuggling
+const PROMPT_INJECTION_KEYWORDS = ['ignore', 'system', 'prompt', 'assistant', 'instruction', 'admin', 'bypass'];
+
 interface CharMeta {
   name: string;
   desc: string;
@@ -17,19 +24,19 @@ interface CharMeta {
 }
 
 const ZERO_WIDTH_POINTS: Record<number, CharMeta> = {
-  0x200b: { name: 'ZERO WIDTH SPACE', desc: 'Can be used for text steganography or prompt injection smuggling', defaultSeverity: 'critical', tag: 'ZWSP' },
-  0x200c: { name: 'ZERO WIDTH NON-JOINER', desc: 'Prevents ligature formation (essential in Persian/Indic, suspect in Latin)', defaultSeverity: 'warning', tag: 'ZWNJ' },
-  0x200d: { name: 'ZERO WIDTH JOINER', desc: 'Combines characters/emojis (essential in emoji sequences, suspect in Latin)', defaultSeverity: 'warning', tag: 'ZWJ' },
-  0xfeff: { name: 'ZERO WIDTH NO-BREAK SPACE (BOM)', desc: 'Byte order mark, causes unexpected string comparison mismatches', defaultSeverity: 'warning', tag: 'BOM' },
-  0x2060: { name: 'WORD JOINER', desc: 'Zero-width non-breaking character that can conceal payload boundaries', defaultSeverity: 'warning', tag: 'WJ' },
-  0x180e: { name: 'MONGOLIAN VOWEL SEPARATOR', desc: 'Deprecated invisible separator that may cause rendering anomalies', defaultSeverity: 'warning', tag: 'MVS' },
-  0x00ad: { name: 'SOFT HYPHEN', desc: 'Invisible formatting character until a line break occurs, evades exact match filters', defaultSeverity: 'warning', tag: 'SHY' },
-  0x200e: { name: 'LEFT-TO-RIGHT MARK', desc: 'Invisible directional formatting character used to correct neutral character ordering', defaultSeverity: 'info', tag: 'LRM' },
-  0x200f: { name: 'RIGHT-TO-LEFT MARK', desc: 'Invisible directional formatting character used to correct neutral character ordering', defaultSeverity: 'info', tag: 'RLM' },
-  0x2061: { name: 'FUNCTION APPLICATION', desc: 'Invisible math operator, unexpected in general text', defaultSeverity: 'warning', tag: 'FA' },
-  0x2062: { name: 'INVISIBLE TIMES', desc: 'Invisible math operator, unexpected in general text', defaultSeverity: 'warning', tag: 'IT' },
-  0x2063: { name: 'INVISIBLE SEPARATOR', desc: 'Invisible punctuation character', defaultSeverity: 'warning', tag: 'IS' },
-  0x2064: { name: 'INVISIBLE PLUS', desc: 'Invisible math operator', defaultSeverity: 'warning', tag: 'IP' },
+  0x200b: { name: 'ZERO WIDTH SPACE', desc: 'Zero-width space; legitimate in unspaced scripts (Thai/Khmer/Lao/Myanmar), suspicious inside Latin tokens', defaultSeverity: 'warning', tag: 'ZWSP' },
+  0x200c: { name: 'ZERO WIDTH NON-JOINER', desc: 'Prevents ligature formation (essential in Persian/Indic, suspect in Latin)', defaultSeverity: 'info', tag: 'ZWNJ' },
+  0x200d: { name: 'ZERO WIDTH JOINER', desc: 'Combines characters/emojis (essential in emoji sequences and Indic scripts, suspect in Latin)', defaultSeverity: 'info', tag: 'ZWJ' },
+  0xfeff: { name: 'ZERO WIDTH NO-BREAK SPACE (BOM)', desc: 'Byte order mark; may cause unexpected string comparison mismatches when mid-string', defaultSeverity: 'warning', tag: 'BOM' },
+  0x2060: { name: 'WORD JOINER', desc: 'Zero-width non-breaking character that prevents line breaks', defaultSeverity: 'info', tag: 'WJ' },
+  0x180e: { name: 'MONGOLIAN VOWEL SEPARATOR', desc: 'Mongolian format character', defaultSeverity: 'info', tag: 'MVS' },
+  0x00ad: { name: 'SOFT HYPHEN', desc: 'Discretionary hyphen for typographical line breaking in European typography', defaultSeverity: 'info', tag: 'SHY' },
+  0x200e: { name: 'LEFT-TO-RIGHT MARK', desc: 'Directional formatting mark used to order neutral characters (UAX #9)', defaultSeverity: 'info', tag: 'LRM' },
+  0x200f: { name: 'RIGHT-TO-LEFT MARK', desc: 'Directional formatting mark used to order neutral characters (UAX #9)', defaultSeverity: 'info', tag: 'RLM' },
+  0x2061: { name: 'FUNCTION APPLICATION', desc: 'Invisible mathematical operator (MathML/Unicode mathematics)', defaultSeverity: 'info', tag: 'FA' },
+  0x2062: { name: 'INVISIBLE TIMES', desc: 'Invisible mathematical operator (e.g. 2x multiplication in MathML)', defaultSeverity: 'info', tag: 'IT' },
+  0x2063: { name: 'INVISIBLE SEPARATOR', desc: 'Invisible mathematical separator character', defaultSeverity: 'info', tag: 'IS' },
+  0x2064: { name: 'INVISIBLE PLUS', desc: 'Invisible mathematical addition operator', defaultSeverity: 'info', tag: 'IP' },
 };
 
 // Table of Bidirectional Overrides and Isolates
@@ -37,8 +44,8 @@ const BIDI_POINTS: Record<number, CharMeta> = {
   0x202a: { name: 'LEFT-TO-RIGHT EMBEDDING (LRE)', desc: 'Forces LTR directionality, alters visual order of characters', defaultSeverity: 'warning', tag: 'LRE' },
   0x202b: { name: 'RIGHT-TO-LEFT EMBEDDING (RLE)', desc: 'Forces RTL directionality, alters visual order of characters', defaultSeverity: 'warning', tag: 'RLE' },
   0x202c: { name: 'POP DIRECTIONAL FORMATTING (PDF)', desc: 'Terminates embedding/override scope', defaultSeverity: 'warning', tag: 'PDF' },
-  0x202d: { name: 'LEFT-TO-RIGHT OVERRIDE (LRO)', desc: 'High-risk override: inverts visual character sequence, spoofing file extensions or URLs', defaultSeverity: 'critical', tag: 'LRO' },
-  0x202e: { name: 'RIGHT-TO-LEFT OVERRIDE (RLO)', desc: 'Critical Trojan Source vulnerability vector (e.g. disguised .exe as .pdf)', defaultSeverity: 'critical', tag: 'RLO' },
+  0x202d: { name: 'LEFT-TO-RIGHT OVERRIDE (LRO)', desc: 'High-risk override: inverts visual character sequence, spoofing file extensions or code order', defaultSeverity: 'critical', tag: 'LRO' },
+  0x202e: { name: 'RIGHT-TO-LEFT OVERRIDE (RLO)', desc: 'Critical Trojan Source vulnerability vector (e.g. disguised .exe as .pdf, CVE-2021-42574)', defaultSeverity: 'critical', tag: 'RLO' },
   0x2066: { name: 'LEFT-TO-RIGHT ISOLATE (LRI)', desc: 'Isolates text with LTR direction', defaultSeverity: 'warning', tag: 'LRI' },
   0x2067: { name: 'RIGHT-TO-LEFT ISOLATE (RLI)', desc: 'Isolates text with RTL direction', defaultSeverity: 'warning', tag: 'RLI' },
   0x2068: { name: 'FIRST STRONG ISOLATE (FSI)', desc: 'Isolates text based on first strong directional character', defaultSeverity: 'warning', tag: 'FSI' },
@@ -114,28 +121,24 @@ export class UnicodeAuditor {
     };
   }
 
-  /**
-   * Checks whether a code point belongs to Arabic, Persian, Hebrew, or Indic scripts
-   */
-  private isPersoArabicOrIndic(cp: number): boolean {
+  private isScriptWordBreakContext(charBefore?: string, charAfter?: string): boolean {
     return (
-      (cp >= 0x0600 && cp <= 0x06ff) || // Arabic
-      (cp >= 0x0750 && cp <= 0x077f) || // Arabic Supplement
-      (cp >= 0x08a0 && cp <= 0x08ff) || // Arabic Extended-A
-      (cp >= 0x0590 && cp <= 0x05ff) || // Hebrew
-      (cp >= 0x0900 && cp <= 0x097f) || // Devanagari
-      (cp >= 0x0980 && cp <= 0x09ff)    // Bengali
+      (charBefore !== undefined && SCRIPT_BREAK_REGEX.test(charBefore)) ||
+      (charAfter !== undefined && SCRIPT_BREAK_REGEX.test(charAfter))
     );
   }
 
-  /**
-   * Checks whether a code point is an emoji or modifier
-   */
-  private isEmoji(cp: number): boolean {
+  private isComplexScriptContext(charBefore?: string, charAfter?: string): boolean {
     return (
-      (cp >= 0x1f300 && cp <= 0x1faff) || // Miscellaneous Symbols and Pictographs, Emoticons, Transport
-      (cp >= 0x2600 && cp <= 0x27bf) ||   // Miscellaneous Symbols, Dingbats
-      (cp >= 0xfe00 && cp <= 0xfe0f)      // Variation Selectors
+      (charBefore !== undefined && COMPLEX_SCRIPT_REGEX.test(charBefore)) ||
+      (charAfter !== undefined && COMPLEX_SCRIPT_REGEX.test(charAfter))
+    );
+  }
+
+  private isEmojiContext(charBefore?: string, charAfter?: string): boolean {
+    return (
+      (charBefore !== undefined && EMOJI_REGEX.test(charBefore)) ||
+      (charAfter !== undefined && EMOJI_REGEX.test(charAfter))
     );
   }
 
@@ -160,29 +163,48 @@ export class UnicodeAuditor {
       codePoints.push(cp);
 
       const hex = 'U+' + cp.toString(16).toUpperCase().padStart(4, '0');
-      const prevCp = pos > 0 ? chars[pos - 1].codePointAt(0) : undefined;
-      const nextCp = pos + 1 < chars.length ? chars[pos + 1].codePointAt(0) : undefined;
+      const prevChar = pos > 0 ? chars[pos - 1] : undefined;
+      const nextChar = pos + 1 < chars.length ? chars[pos + 1] : undefined;
 
       // 1. Check for zero-width / invisible format characters
       if (ZERO_WIDTH_POINTS[cp]) {
         const item = ZERO_WIDTH_POINTS[cp];
-        let severity = item.defaultSeverity;
+        let severity: Severity = item.defaultSeverity;
         let isLinguisticContext = false;
+
+        // Contextual analysis for U+200B (Zero Width Space):
+        // In Thai, Khmer, Lao, Myanmar: legitimate word boundary marker
+        if (cp === 0x200b) {
+          if (this.isScriptWordBreakContext(prevChar, nextChar)) {
+            severity = 'info';
+            isLinguisticContext = true;
+          } else {
+            const lowerText = text.toLowerCase();
+            const isPromptKeyword = PROMPT_INJECTION_KEYWORDS.some(kw => lowerText.includes(kw));
+            severity = isPromptKeyword ? 'critical' : 'warning';
+            isLinguisticContext = false;
+          }
+        }
 
         // Contextual analysis for ZWNJ (U+200C): Legitimate in Persian/Arabic/Indic (e.g. می\u200Cروم)
         if (cp === 0x200c) {
-          if ((prevCp && this.isPersoArabicOrIndic(prevCp)) || (nextCp && this.isPersoArabicOrIndic(nextCp))) {
+          if (this.isComplexScriptContext(prevChar, nextChar)) {
             severity = 'info';
             isLinguisticContext = true;
+          } else {
+            severity = 'warning';
+            isLinguisticContext = false;
           }
         }
 
         // Contextual analysis for ZWJ (U+200D): Legitimate in Emoji ZWJ sequences or Indic ligatures
         if (cp === 0x200d) {
-          if ((prevCp && (this.isEmoji(prevCp) || this.isPersoArabicOrIndic(prevCp))) ||
-              (nextCp && (this.isEmoji(nextCp) || this.isPersoArabicOrIndic(nextCp)))) {
+          if (this.isEmojiContext(prevChar, nextChar) || this.isComplexScriptContext(prevChar, nextChar)) {
             severity = 'info';
             isLinguisticContext = true;
+          } else {
+            severity = 'warning';
+            isLinguisticContext = false;
           }
         }
 
@@ -192,8 +214,35 @@ export class UnicodeAuditor {
           isLinguisticContext = true;
         }
 
+        // Soft Hyphen (U+00AD), Word Joiner (U+2060), and Math Operators (U+2061..U+2064):
+        if (cp === 0x00ad || cp === 0x2060 || (cp >= 0x2061 && cp <= 0x2064)) {
+          severity = 'info';
+          isLinguisticContext = true;
+        }
+
         if (severity !== 'info') {
           hasZeroWidth = true;
+        }
+
+        let desc = item.desc;
+        let recommendation = 'Review zero-width character to ensure it does not bypass filters or conceal intent.';
+        if (isLinguisticContext) {
+          if (cp === 0x200b) {
+            desc = 'Standard script word boundary marker in writing system without whitespace (e.g. Thai/Khmer/Lao/Myanmar).';
+            recommendation = 'Preserve this character to maintain valid word segmentation and line breaking.';
+          } else if (cp === 0x00ad) {
+            desc = 'Discretionary soft hyphen used for typographical line breaking.';
+            recommendation = 'Preserve soft hyphen to support responsive document typesetting.';
+          } else if (cp >= 0x2061 && cp <= 0x2064) {
+            desc = 'Standard invisible mathematical operator (MathML/Unicode mathematics).';
+            recommendation = 'Preserve operator to maintain semantic mathematical formula representation.';
+          } else {
+            desc = `Standard linguistic or emoji formatting character (${item.tag}). Retain to preserve text integrity.`;
+            recommendation = 'Preserve this character to maintain valid orthography or emoji ligatures.';
+          }
+        } else if (severity === 'critical') {
+          desc = `Critical zero-width smuggling detected inside keyword token. Likely attempt to bypass keyword moderation or safety filters.`;
+          recommendation = 'Strip zero-width characters and review payload for adversarial intent.';
         }
 
         anomalies.push({
@@ -204,12 +253,8 @@ export class UnicodeAuditor {
           char,
           position: pos,
           name: item.name,
-          description: isLinguisticContext
-            ? `Standard linguistic or emoji formatting character (${item.tag}). Retain to preserve text integrity.`
-            : item.desc,
-          recommendation: isLinguisticContext
-            ? 'Preserve this character to maintain valid orthography or emoji ligatures.'
-            : 'Strip or review zero-width character to prevent filter evasion or prompt injection smuggling.',
+          description: desc,
+          recommendation,
           isLinguisticContext,
         });
       }
@@ -281,8 +326,8 @@ export class UnicodeAuditor {
       }
     }
 
-    // Evaluate Zalgo / diacritic overflow
-    const hasZalgo = maxConsecutiveCombining >= 4;
+    // Evaluate Zalgo / diacritic overflow (only for excessive Latin/Greek combining marks >= 5)
+    const hasZalgo = maxConsecutiveCombining >= 5;
     if (hasZalgo) {
       anomalies.push({
         type: 'zalgo',
@@ -293,7 +338,7 @@ export class UnicodeAuditor {
         position: 0,
         name: 'ZALGO_COMBINING_OVERFLOW',
         description: `Excessive combining diacritics detected (${maxConsecutiveCombining} stacked marks). Can cause UI layout breakage or regex DoS`,
-        recommendation: 'Limit consecutive combining marks to 3 or normalize text with NFC',
+        recommendation: 'Limit consecutive combining marks or normalize text with NFC',
       });
     }
 
@@ -330,12 +375,13 @@ export class UnicodeAuditor {
     const diagnosticView = this.getDiagnosticView(text);
 
     let summary = 'No known Unicode integrity or security patterns detected.';
+    const nonLinguisticAnomalies = anomalies.filter(a => !a.isLinguisticContext);
     if (riskScore >= 70) {
       summary = `CRITICAL RISK: Detected high-severity anomalies (${anomalies.filter(a => a.severity === 'critical').length} critical issues) including invisible smuggling or bidi overrides.`;
     } else if (riskScore >= 30) {
-      summary = `MODERATE RISK: Detected ${anomalies.filter(a => !a.isLinguisticContext).length} anomalies requiring review before database or LLM usage.`;
-    } else if (anomalies.length > 0) {
-      summary = `INFORMATIONAL: Input contains ${anomalies.length} standard Unicode characteristics (e.g. linguistic formatting or normalization).`;
+      summary = `MODERATE RISK: Detected ${nonLinguisticAnomalies.length} anomalies requiring review before database or LLM usage.`;
+    } else if (nonLinguisticAnomalies.length > 0) {
+      summary = `INFORMATIONAL: Input contains ${nonLinguisticAnomalies.length} non-standard Unicode characteristics.`;
     }
 
     return {

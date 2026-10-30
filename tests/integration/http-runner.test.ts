@@ -203,3 +203,25 @@ test('HTTP Runner - fails gracefully on network connection failure', async () =>
   assert.equal(result.passed, false);
   assert.ok(result.error?.includes('ECONNREFUSED') || result.error?.includes('connection failed'));
 });
+
+test('HTTP Runner - fails safely when response exceeds maxResponseBytes', async () => {
+  const { server, url } = await createMockServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    // Write a payload larger than 100 bytes
+    res.write('{"data":"' + 'A'.repeat(500) + '"}');
+    res.end();
+  });
+
+  try {
+    const runner = new TestRunner();
+    const result = await runner.probeHttpEndpoint(dummyTestCase, url, {
+      maxResponseBytes: 100, // 100 byte limit
+    });
+
+    assert.equal(result.outcome, 'failed');
+    assert.equal(result.passed, false);
+    assert.ok(result.error?.includes('exceeded maximum permitted size'));
+  } finally {
+    server.close();
+  }
+});

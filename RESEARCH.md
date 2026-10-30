@@ -2,93 +2,122 @@
 
 **Document Date:** October 30, 2026  
 **Author:** Brahim Battou (`@brahimbattou`)  
-**Status:** Verified Architectural Research  
+**Status:** Verified Architecture & Competitive Research  
+**Methodology Note:** All comparative ratings and priority rankings in this document are qualitative estimates based on architectural gap analysis, developer workflow audits, and verified repository telemetry as of October 2026, not absolute quantitative facts.
 
 ---
 
 ## 1. Executive Summary
 
-Modern software applications operate in a globally distributed, multilingual ecosystem. Applications ingest text in hundreds of human languages, scripts, and typography styles. Simultaneously, the rise of Large Language Models (LLMs) and distributed microservices has created critical new vulnerabilities stemming from Unicode edge cases—including zero-width character steganography, prompt-injection smuggling, Trojan Source bidirectional overrides (CVE-2021-42574), and silent UTF-8 multi-byte truncation.
+Modern software applications ingest text across hundreds of writing systems, complex scripts, emojis, and mathematical notations. In distributed microservice architectures, API gateways, databases, and AI pipelines, international text processing frequently fails at boundary seams:
+- **Silent Multi-Byte Truncation:** Database column constraints or naive substring slicing truncate UTF-8 byte sequences mid-character, introducing replacement characters (`U+FFFD`) or corrupted encodings.
+- **Steganographic Obfuscation:** Attackers inject non-printing characters (zero-width spaces `U+200B`, joiners `U+200D`, word joiners `U+2060`, or soft hyphens `U+00AD`) to disguise prompt injection payloads from simple string filters while remaining present in downstream processing.
+- **Trojan Source Attacks (CVE-2021-42574):** Invisible bidirectional override characters (`U+202E`, `U+202D`) reorder visually displayed code while execution order remains unchanged.
+- **Normalization Mismatches (UAX #15):** Discrepancies between Canonical Decomposition (NFD) and Canonical Composition (NFC) cause unexpected hash mismatches, duplicate record creation, and broken authentication tokens.
+- **Cross-Script Spoofing (UTS #39):** Visually indistinguishable lookalike glyphs across scripts (e.g. Cyrillic `а` vs Latin `a`) deceive users and authorization policies.
 
-This research document evaluates five high-impact open-source candidate opportunities, conducts a competitor analysis across the software testing landscape, and outlines the precise architectural gap that **GlobalInputLab** fills.
-
----
-
-## 2. Evaluation of 5 Candidate Opportunities
-
-To identify an internationally relevant open-source project with sustainable maintainability and genuine adoption potential, five candidate concepts were evaluated against eight weighted criteria:
-
-1. **Real-world Problem (15%):** Demonstrable developer pain point and production failure frequency.
-2. **Global Relevance (15%):** Multi-region and multi-language utility across industries.
-3. **Differentiation (15%):** Structural distinction from existing utilities.
-4. **Technical Feasibility (15%):** High reliability attainable with deterministic, zero-dependency code.
-5. **Adoption Potential (15%):** Ease of drop-in integration into CI/CD pipelines, test frameworks, and CLIs.
-6. **Ecosystem Relevance (10%):** Downstream integration suitability for web frameworks, ORMs, and AI pipelines.
-7. **Contributor Potential (10%):** Accessibility for international community contributions (locales, test vectors).
-8. **Sustainability (5%):** Low maintenance overhead, zero cloud hosting dependencies.
-
-### Comparative Evaluation Matrix
-
-| Candidate Concept | Problem (15) | Global (15) | Diff (15) | Feasibility (15) | Adoption (15) | Ecosystem (10) | Contributor (10) | Sustain (5) | Total (/100) |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **1. GlobalInputLab (i18n & Data Integrity)** | **15** | **15** | **14** | **14** | **14** | **9** | **10** | **5** | **96** |
-| 2. EnvSentinel (Config Drift & Secret Scanner) | 12 | 12 | 8 | 13 | 11 | 7 | 6 | 5 | 74 |
-| 3. PromptContract (LLM Output Schema Fuzzer) | 13 | 14 | 10 | 11 | 11 | 8 | 7 | 4 | 78 |
-| 4. API-Contract-Diff (OpenAPI Breaking Changes) | 11 | 12 | 8 | 12 | 11 | 7 | 6 | 4 | 71 |
-| 5. MockForge (Zero-Config Network Fault Proxy) | 10 | 12 | 8 | 11 | 10 | 6 | 6 | 5 | 68 |
-
-### Candidate Descriptions & Disqualification Rationale
-
-- **Candidate 2: EnvSentinel (Score: 74/100)**
-  - *Premise:* Scanner for missing environment variables between environments and accidental secret commits.
-  - *Disqualification:* Highly saturated space dominated by well-funded commercial tools (GitGuardian, TruffleHog, Snyk, `dotenv-linter`). Differentiating as an independent maintainer without commercial server infrastructure is difficult.
-- **Candidate 3: PromptContract (Score: 78/100)**
-  - *Premise:* Adversarial fuzzing tool for LLM structured outputs (JSON schema conformance).
-  - *Disqualification:* Rapidly moving market with established tools such as Promptfoo (12k+ stars), DeepEval, and Guardrails AI. High maintenance churn due to shifting third-party LLM API versions.
-- **Candidate 4: API-Contract-Diff (Score: 71/100)**
-  - *Premise:* Semantic breaking-change detector for OpenAPI specs and GraphQL schemas.
-  - *Disqualification:* Niche dominated by Optic, OpenAPI-Diff, and Redocly. High barrier to entry with limited novelty.
-- **Candidate 5: MockForge (Score: 68/100)**
-  - *Premise:* Local proxy for simulating network latency, dropped packets, and 5xx errors.
-  - *Disqualification:* Direct competition with MSW (Mock Service Worker), WireMock, and Prism. Heavy existing ecosystem entrenchment.
-- **Candidate 1: GlobalInputLab (Score: 96/100) — SELECTED**
-  - *Premise:* An active, non-destructive testing and diagnostic toolkit for international text integrity, Unicode security anomalies, and byte-level round-trip preservation.
-  - *Justification:* Bridges a distinct, demonstrable gap between passive, unmaintained text files (like `big-list-of-naughty-strings`) and active CI verification. Every software system handling user input encounters these issues.
+This report evaluates five candidate open-source project concepts, presents an evidence-backed competitor analysis with verified source links, defines demonstrated architectural differentiation, and openly documents known project limitations and unverified assumptions.
 
 ---
 
-## 3. Deep Competitor & Alternative Analysis
+## 2. Evaluation of Candidate Opportunities (Methodology & Estimates)
 
-| Alternative / Tool | URL & Repository | Core Strengths | Known Limitations & Gaps | Maintenance & Adoption Status (2026) |
+### 2.1 Evaluation Criteria & Weighting
+
+Five open-source opportunities were evaluated against eight weighted criteria:
+
+1. **Demonstrated Developer Pain (15%):** Frequency of production outages, data loss incidents, and security vulnerabilities caused by the problem class.
+2. **Global & Multilingual Relevance (15%):** Utility across non-English scripts, internationalization (i18n) workflows, and localized software environments.
+3. **Architectural Differentiation (15%):** Degree of distinction from existing, well-maintained tools and package ecosystems.
+4. **Implementation Feasibility (15%):** Practicality of achieving high deterministic reliability with zero external runtime dependencies.
+5. **CI/CD Integration Potential (15%):** Ease of drop-in integration into existing automated test suites, test runners, and command-line pipelines.
+6. **AI & Pipeline Relevance (10%):** Downstream applicability for API payloads, tokenizer boundaries, and structured data serialization.
+7. **Maintainability & Sustainability (10%):** Low recurring infrastructure overhead, zero cloud hosting dependencies, and test determinism.
+8. **Community Contribution Potential (5%):** Accessibility for international contributors to submit localized test vectors and script edge cases.
+
+### 2.2 Estimated Comparative Scoring Matrix
+
+> **Note on Scoring:** The scores below represent subjective architectural estimations derived from the criteria above. They serve as comparative heuristics to guide project selection, not formal mathematical proofs.
+
+| Candidate Concept | Pain (15) | Global (15) | Diff (15) | Feasibility (15) | CI/CD (15) | AI (10) | Maint (10) | Contrib (5) | Estimated Total (/100) | Selection Status |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **GlobalInputLab** (i18n & Data Integrity) | 14 | 15 | 13 | 14 | 14 | 8 | 9 | 4 | **91 / 100** | **Selected** |
+| **PromptContract** (LLM JSON Schema Fuzzer) | 12 | 10 | 10 | 11 | 11 | 9 | 6 | 3 | **72 / 100** | Disqualified |
+| **EnvSentinel** (Config Drift & Secret Scanner) | 11 | 11 | 7 | 13 | 12 | 6 | 7 | 4 | **71 / 100** | Disqualified |
+| **API-Contract-Diff** (OpenAPI Semantic Diff) | 10 | 10 | 7 | 11 | 11 | 6 | 7 | 3 | **65 / 100** | Disqualified |
+| **MockForge** (Zero-Config Network Fault Proxy) | 9 | 9 | 7 | 10 | 10 | 5 | 7 | 4 | **61 / 100** | Disqualified |
+
+### 2.3 Candidate Evaluations & Disqualification Rationale
+
+- **Candidate 2: PromptContract (Estimated Score: 72/100)**
+  - *Premise:* Fuzzing generator for LLM structured JSON output schemas to test schema compliance and repair mechanisms.
+  - *Disqualification Rationale:* Saturated domain actively addressed by established open-source projects including [Promptfoo](https://github.com/promptfoo/promptfoo) (active, >12k GitHub stars), [DeepEval](https://github.com/confident-ai/deepeval), and [Guardrails AI](https://github.com/guardrails-ai/guardrails). Testing model-level behavior requires continuous API budget and fluctuates with provider model updates, creating high maintenance volatility.
+- **Candidate 3: EnvSentinel (Estimated Score: 71/100)**
+  - *Premise:* Scanner for missing environment variables, config drift across deployment stages, and credential exposure.
+  - *Disqualification Rationale:* Highly crowded ecosystem dominated by production-grade tools like [TruffleHog](https://github.com/trufflesecurity/trufflehog), [GitGuardian](https://github.com/GitGuardian), and [dotenv-linter](https://github.com/dotenv-linter/dotenv-linter). Differentiating as an independent zero-infrastructure utility provides minimal incremental value.
+- **Candidate 4: API-Contract-Diff (Estimated Score: 65/100)**
+  - *Premise:* Semantic breaking change detector for OpenAPI 3.x and GraphQL schemas.
+  - *Disqualification Rationale:* Well-served by established industry utilities such as [OpenAPI-Diff](https://github.com/OpenAPITools/openapi-diff), [Optic](https://github.com/opticdev/optic), and Redocly CLI.
+- **Candidate 5: MockForge (Estimated Score: 61/100)**
+  - *Premise:* Local network fault simulation proxy for testing latency spikes, dropped packets, and HTTP errors.
+  - *Disqualification Rationale:* Competes directly with industry standards including [Mock Service Worker (MSW)](https://github.com/mswjs/msw) and [WireMock](https://github.com/wiremock/wiremock).
+- **Candidate 1: GlobalInputLab (Estimated Score: 91/100) — Selected**
+  - *Premise:* Non-destructive data integrity testing toolkit, byte-level round-trip verifier, and Unicode security auditor for international software systems and API pipelines.
+  - *Selection Justification:* While developers frequently encounter multi-byte corruption, zero-width steganography, and normalization drift, existing tools are almost exclusively passive string lists or format-only validators. No lightweight, zero-dependency testing toolkit actively probes live HTTP endpoints or CLI subprocesses for exact byte preservation and Unicode safety.
+
+---
+
+## 3. Evidence-Based Competitor & Alternative Analysis
+
+The table below provides verifiable evidence, documented repository URLs, maintenance status, and technical limitations for existing tools in the text testing domain (researched October 2026).
+
+| Tool / Repository | Official Source Link | Primary Strengths | Verified Limitations & Architectural Gaps | Maintenance & Activity Telemetry (Oct 2026) |
 | :--- | :--- | :--- | :--- | :--- |
-| **Big List of Naughty Strings (BLNS)** | [github.com/minimaxir/big-list-of-naughty-strings](https://github.com/minimaxir/big-list-of-naughty-strings) | Over 46k stars; industry-standard static corpus of problematic strings across SQLi, XSS, Unicode, emojis. | Passive list only (JSON/TXT). Provides no test runner, no assertions, no round-trip verification, no schema fuzzer, and no structured reporting. Developers must write custom scripts to parse and assert results. | Infrequent commits; primarily a static reference dataset. |
-| **unicode-org / unicodetools** | [github.com/unicode-org/unicodetools](https://github.com/unicode-org/unicodetools) | Authoritative Unicode Consortium tools for generating UCD, UCA, and IDNA data files. | Extremely low-level; targeted at compiler and standard-library implementers. Inaccessible for web/backend application test suites. | Active official repository, but not intended as an application testing toolkit. |
-| **cweb / unicode-hax** | [github.com/cweb/unicode-hax](https://github.com/cweb/unicode-hax) | Security-focused Unicode fuzzing payloads targeting buffer overflows and protocol injection. | Narrow scope (only exploit payloads); no non-destructive diagnostics; lacks CLI and modern CI reporting formats (JUnit/SARIF). | Abandoned; last updated several years ago. |
-| **validator.js** | [github.com/validatorjs/validator.js](https://github.com/validatorjs/validator.js) | Over 22k stars; standard string format validator (isEmail, isURL, isAlpha). | Focuses on format validation, not data integrity or Unicode diagnostics. Does not test round-trip byte preservation, normalization drift, or zero-width smuggling. | Highly adopted, active, but solves a fundamentally different problem. |
-| **mathiasbynens / utf8.js** | [github.com/mathiasbynens/utf8.js](https://github.com/mathiasbynens/utf8.js) | Early reference implementation of UTF-8 encoding/decoding in JavaScript. | Pure transcoding utility; superseded by native `TextEncoder`/`TextDecoder`. No testing capabilities. | Deprecated / historical utility. |
+| **Big List of Naughty Strings (BLNS)** | [github.com/minimaxir/big-list-of-naughty-strings](https://github.com/minimaxir/big-list-of-naughty-strings) | Industry benchmark corpus (>46k stars); broad collection of edge cases (SQLi, format strings, Unicode, emojis). | **Passive data file only.** Provides no execution harness, no assertions, no round-trip comparison, and no byte-level diagnostics. Developers must write custom test runners to use it. | Established project; primarily static reference with low ongoing commit frequency. |
+| **unicodetools (Unicode Consortium)** | [github.com/unicode-org/unicodetools](https://github.com/unicode-org/unicodetools) | Authoritative reference tools maintained by the Unicode Consortium for generating UCD, UCA, and IDNA data files. | **Extremely low-level compiler/spec tooling.** Written in Java; designed for standards authors and standard-library implementers, not for testing web applications or microservice APIs. | Actively maintained by Unicode Consortium, but not intended as an application testing toolkit. |
+| **unicode-hax** | [github.com/cweb/unicode-hax](https://github.com/cweb/unicode-hax) | Security-focused Unicode fuzzing payloads targeting buffer overflows and protocol parsers. | **Narrow offensive scope.** Lacks non-destructive auditing, lacks a structured test runner, and provides no CI/CD export formats (JUnit XML, Markdown). | Inactive/unmaintained; repository has had no substantive updates in recent years. |
+| **validator.js** | [github.com/validatorjs/validator.js](https://github.com/validatorjs/validator.js) | Standard web string validation library (>22k stars); excels at syntax checking (`isEmail`, `isURL`, `isUUID`). | **Format validation, not data integrity.** Does not test byte-level round-trip preservation, multi-byte boundary truncation, normalization drift, or zero-width prompt steganography. | Actively maintained, but addresses a fundamentally different phase of input handling (syntactic validation vs encoding/integrity testing). |
+| **TrueFont / FontQA tools** | [github.com/googlefonts/fontbakery](https://github.com/googlefonts/fontbakery) | Deep inspection of OpenType/TrueType glyph shaping and typography rendering. | **Font binary analysis only.** Does not test application-level string storage, serialization, or network transport. | Actively maintained by Google Fonts team; non-overlapping domain. |
 
 ---
 
-## 4. The Gap GlobalInputLab Fills
+## 4. Demonstrated Differentiation
 
-Developers currently have only two extremes:
-1. **Raw static string lists** (e.g. BLNS) with no execution harness or verification framework.
-2. **Generic schema validators** (e.g. Zod, Joi, Validator.js) that validate formats but cannot detect byte-boundary truncation, invisible prompt-injection characters, or normalization-induced database corruption.
+GlobalInputLab fills a distinct operational niche with demonstrable technical capabilities:
 
-### GlobalInputLab's Unique Differentiation:
-1. **Active Multi-Target Probing:** Probes live HTTP endpoints and shell commands, comparing input to output byte-for-byte.
-2. **Inconclusive vs. Passed Distinction:** Unlike naive runners that treat HTTP 200 as success, GlobalInputLab validates that the returned payload matches the input and reports unverified responses as `INCONCLUSIVE`.
-3. **Non-Destructive Diagnostics:** Audits text without corrupting valid multilingual orthography (preserving Persian ZWNJ, complex emoji ZWJ sequences, and Arabic BiDi marks).
-4. **Standards-Aligned Security:** Grounded in Unicode Standard Annexes (UAX #9 BiDi, UAX #15 Normalization, UAX #29 Segmentation, UAX #31 Identifier Syntax, and UTS #39 Unicode Security Mechanisms).
-5. **Zero-Dependency CI Integration:** Native Node.js test runner integration, JUnit XML, Markdown summaries, and SARIF output with zero external production dependencies.
+1. **Active Probing with Byte-Level Round-Trip Verification:** Rather than validating syntax or running static regexes, GlobalInputLab executes live probes against HTTP endpoints and shell commands, comparing input and output byte-for-byte and pinpointing the exact character offset of any mutation.
+2. **Rigorous Transport vs. Integrity Distinction:** Avoids false positives by separating network success (`HTTP 200 OK`) from payload preservation. If an endpoint returns 200 without echoing verifiable data, the result is explicitly flagged as **`INCONCLUSIVE`** rather than falsely marked as passing.
+3. **Genuinely Non-Destructive Auditing by Default:** Unlike naive regex filters that delete legitimate characters, GlobalInputLab preserves valid linguistic formatting across scripts—including Thai/Khmer/Lao/Myanmar word boundaries (`U+200B`), Tamil/Devanagari combining marks, Persian ZWNJ (`U+200C`), complex emoji ZWJ sequences (`U+200D`), soft hyphens (`U+00AD`), and mathematical operators (`U+2061`..`U+2064`).
+4. **Curated Standards-Based Security Diagnostics:** Implements a curated security subset aligned with Unicode Technical Standard #39 (v15.1.0) for cross-script and mixed-script confusable detection, alongside UAX #9 bidirectional override auditing (CVE-2021-42574) and UAX #15 normalization checks.
+5. **Zero-Dependency Native Architecture:** Runs on standard Node.js (>=18) using native `Intl.Segmenter`, `fetch`, and `node:test`, generating JUnit XML and Markdown summaries for seamless CI/CD integration with 0 npm supply-chain dependencies.
 
 ---
 
-## 5. References & Standard Specifications
+## 5. Known Limitations & Technical Scope Boundaries
 
-- Unicode Consortium. *UTS #39: Unicode Security Mechanisms.* (http://www.unicode.org/reports/tr39/)
-- Unicode Consortium. *UAX #9: Unicode Bidirectional Algorithm.* (http://www.unicode.org/reports/tr9/)
-- Unicode Consortium. *UAX #15: Unicode Normalization Forms.* (http://www.unicode.org/reports/tr15/)
-- Unicode Consortium. *UAX #29: Unicode Text Segmentation.* (http://www.unicode.org/reports/tr29/)
-- Internet Engineering Task Force. *RFC 6530: Overview and Framework for Internationalized Email.*
-- Boucher, N., & Anderson, R. *Trojan Source: Invisible Vulnerabilities.* Cambridge University (CVE-2021-42574).
+To maintain scientific honesty, the following constraints of the current implementation must be acknowledged:
+
+1. **Curated UTS #39 Subset, Not Full Conformance:** GlobalInputLab implements a curated security subset of high-frequency Latin/Cyrillic/Greek/Cherokee/Armenian confusables and mathematical alphanumeric bold glyphs. It does **not** embed the complete ~10,000+ entry Unicode UTS #39 `confusables.txt` table in memory, as doing so would inflate package size beyond the zero-dependency, lightweight footprint goal.
+2. **Text Input & API Testing, Not Neural Model Weights:** GlobalInputLab tests how application servers, serializers, proxies, and API endpoints handle Unicode strings. It does **not** inspect neural network weight activations or internal tokenizer vocabularies directly unless an explicit API wrapper is provided by the user.
+3. **Heuristic Context Detection Limitations:** The linguistic context detector uses Unicode script extensions and adjacent character lookahead/lookbehind. While effective for common typography (e.g. Thai word boundaries, Persian prefixes, complex emojis), atypical mixed-script styling or fragmented text fragments may require manual policy tuning via CLI flags.
+4. **Single-Node Execution:** Command runner and HTTP prober are designed for targeted test suites and CI integration; they are not distributed load-testing engines.
+
+---
+
+## 6. Unverified Assumptions
+
+The following assumptions remain subject to ongoing validation through community adoption:
+- *Developer Adoption Model:* It is assumed that development teams prefer a dedicated CLI/CI tool over writing ad-hoc test scripts with static lists like BLNS.
+- *Downstream API Compatibility:* The `--json-path` parameter assumes APIs return structured JSON echoing input strings; APIs that hash, encrypt, or tokenize inputs immediately cannot be tested for byte preservation without a reversible extraction mechanism.
+- *Platform Consistency:* While verified on Node.js 18, 20, and 22 across Windows, Linux, and macOS in CI, behavior on non-standard JavaScript runtimes (e.g., QuickJS, Hermes) has not been verified.
+
+---
+
+## 7. Standards References
+
+- Unicode Consortium. *UTS #39: Unicode Security Mechanisms* (Version 15.1.0). [https://www.unicode.org/reports/tr39/](https://www.unicode.org/reports/tr39/)
+- Unicode Consortium. *UAX #9: Unicode Bidirectional Algorithm*. [https://www.unicode.org/reports/tr9/](https://www.unicode.org/reports/tr9/)
+- Unicode Consortium. *UAX #15: Unicode Normalization Forms*. [https://www.unicode.org/reports/tr15/](https://www.unicode.org/reports/tr15/)
+- Unicode Consortium. *UAX #29: Unicode Text Segmentation*. [https://www.unicode.org/reports/tr29/](https://www.unicode.org/reports/tr29/)
+- Boucher, N., & Anderson, R. (2021). *Trojan Source: Invisible Vulnerabilities*. Cambridge University. [https://trojansource.codes/](https://trojansource.codes/)
+- Internet Engineering Task Force. *RFC 3629: UTF-8, a transformation format of ISO 10646*. [https://www.rfc-editor.org/rfc/rfc3629](https://www.rfc-editor.org/rfc/rfc3629)

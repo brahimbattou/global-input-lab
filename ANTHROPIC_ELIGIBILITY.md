@@ -1,66 +1,90 @@
-# Anthropic Open Source Program Eligibility Assessment
+# Anthropic Claude for Open Source Program Eligibility Assessment
 
 **Assessment Date:** October 30, 2026  
 **Candidate Account:** `@brahimbattou`  
 **Target Project:** `global-input-lab` (`https://github.com/brahimbattou/global-input-lab`)  
-**Target Program:** Anthropic Claude for Open Source Sponsorship  
-**Status:** **DISCRETIONARY / HIGH-IMPACT PATHWAY REQUIRED (ACCOUNT TENURE < 2 YEARS)**
+**Target Program:** Anthropic Claude for Open Source Software (OSS)  
+**Official Program References:**  
+- Program Portal: [https://claude.com/contact-sales/claude-for-oss](https://claude.com/contact-sales/claude-for-oss)  
+- Official Terms & Conditions: [https://www.anthropic.com/claude-for-oss-terms](https://www.anthropic.com/claude-for-oss-terms)  
+**Current Assessment Status:** **CURRENTLY INELIGIBLE — GENERAL ELIGIBILITY REQUIREMENTS NOT MET**
 
 ---
 
-## 1. Candidate Account Audit (Non-Sensitive)
+## 1. Executive Summary & Status Classification
 
-- **GitHub Username:** `brahimbattou`
-- **Account Creation Date:** April 7, 2026 (`2026-04-07T01:10:52Z`)
-- **Account Age:** ~6.8 months (as of October 30, 2026)
-- **Public Repositories:** 0
-- **Geographic Eligibility:** Morocco (Supported region for Anthropic commercial and developer API access)
+An exhaustive review of the candidate GitHub account against the published Anthropic Claude for Open Source Terms and Conditions was conducted. 
 
----
+Under the official terms:
+> Applicants must satisfy **both** all General Eligibility Requirements **and** at least one Qualifying Track. Qualitative or impact-based evaluation tracks (such as Ecosystem Impact) **do not waive** the mandatory General Eligibility requirements, including minimum account tenure.
 
-## 2. Anthropic Program Requirements Analysis
-
-Anthropic's open-source maintainer sponsorship program operates through two distinct evaluation pathways:
-
-### Pathway A: Automated Quantitative Maintainer Track
-- **Requirement 1: Minimum Account Tenure of 2 Years:**
-  - *Candidate Status:* **DOES NOT SATISFY**. The account `@brahimbattou` was created on April 7, 2026 (~6.8 months old). It will reach the 24-month threshold in April 2028.
-- **Requirement 2: Verifiable Historical Commits Over 90 Days:**
-  - *Candidate Status:* Prior to launching `global-input-lab`, the account had 0 public repositories and no verifiable public commits in the preceding 90 days.
-- **Finding on Pathway A:** **Ineligible for automatic algorithmic qualification.** Any claim of eligibility based on account age or past commit history would be false.
+Because candidate account `@brahimbattou` was registered on **April 7, 2026** (tenure of ~6.8 months as of October 30, 2026), it **does not satisfy the mandatory two-year account tenure requirement**. Any immediate application under either automated or qualitative tracks would be rejected on eligibility grounds.
 
 ---
 
-### Pathway B: Qualitative / Discretionary Ecosystem Impact Track
-Anthropic explicitly reserves discretionary grants and API sponsorship for high-impact software projects, security tools, and data-integrity utilities, particularly those addressing AI safety, alignment, and prompt security:
+## 2. Granular Requirements & Gap Analysis
 
-| Evaluation Criterion | Candidate Evidence | Assessment |
-| :--- | :--- | :---: |
-| **Direct Relevance to AI Safety & Integrity** | GlobalInputLab detects zero-width prompt injection smuggling, Trojan Source code execution vectors, and LLM input corruption. | :white_check_mark: **High Impact** |
-| **Engineering Rigor & Correctness** | 50 automated tests, zero runtime dependencies, strict Unicode standard alignment (UAX #9, UAX #15, UAX #29, UTS #39). | :white_check_mark: **Exceeds Standard** |
-| **Open-Source Governance** | MIT License, Contributor Covenant Code of Conduct, security disclosure policy, comprehensive architectural documentation. | :white_check_mark: **Complete** |
-| **Transparency & Honesty** | Accurately states account metrics without inventing history or falsifying credentials. | :white_check_mark: **Full Integrity** |
+### 2.1 General Eligibility Requirements (Mandatory for All Tracks)
 
----
-
-## 3. Strategic Action Plan for Anthropic Sponsorship
-
-To qualify under the Qualitative / Discretionary Track:
-
-1. **Publish Repository Publicly:** Push `brahimbattou/global-input-lab` to GitHub with clean commit history, complete documentation, and passing CI badges.
-2. **Launch Interactive Web Demo & GitHub Action:** Deploy the demo on GitHub Pages and release the reusable CI Action to establish verifiable adoption signals.
-3. **Engage in the AI Safety & i18n Community:** Share research findings (from `RESEARCH.md` and `docs/architecture.md`) regarding zero-width steganography in LLM context windows on GitHub Discussions, Hacker News, and developer communities.
-4. **Submit Discretionary Sponsorship Application:** Submit the project under the AI Safety Tooling / Prompt Steganography category, highlighting the engineering depth and zero-dependency architecture.
+| Official Anthropic Requirement | Candidate Evidence (`@brahimbattou`) | Compliance Status | Analysis & Deficit |
+| :--- | :--- | :---: | :--- |
+| **Minimum Account Tenure (>= 2 Years)** | Account registered on `2026-04-07T01:10:52Z` (~6.8 months old). | :x: **FAILED** | **Deficit: ~17.2 months.** Account will not reach the mandatory 24-month tenure until **April 7, 2028**. |
+| **Active GitHub History (Prior 90 Days)** | 0 public repositories and no verifiable public commits prior to this project. | :x: **FAILED** | Lacks the continuous 90-day track record of verifiable public open-source contributions. |
+| **Geographic / Sanctions Compliance** | Developer located in Morocco (supported commercial and developer region). | :white_check_mark: **PASSED** | Not located in an embargoed or restricted jurisdiction. |
+| **Valid OSS Licensing** | Project licensed under OSI-approved **MIT License** (`LICENSE`). | :white_check_mark: **PASSED** | Fully compliant open-source licensing. |
+| **No Prior Terms Violations** | Account in good standing with GitHub; zero policy violations. | :white_check_mark: **PASSED** | Compliant. |
 
 ---
 
-## 4. Recommended Application Answers (Draft)
+### 2.2 Qualifying Tracks Analysis
 
-### Project Name & URL
-> **GlobalInputLab** — `https://github.com/brahimbattou/global-input-lab`
+The official terms provide multiple tracks, but all require prior satisfaction of the General Requirements above:
 
-### Describe the Project and Its Relevance to Claude / AI Safety
-> GlobalInputLab is an open-source data integrity and Unicode security testing toolkit. Modern LLM pipelines are uniquely vulnerable to invisible Unicode characters (such as zero-width spaces, joiners, and bidirectional overrides like CVE-2021-42574) used to smuggle adversarial instructions past keyword safety filters while being interpreted by tokenizers. GlobalInputLab provides deterministic, non-destructive auditing algorithms that detect these anomalies, verify UTF-8 multi-byte boundary preservation, and test HTTP API endpoints for round-trip data fidelity.
+- **Track A: High-Adoption Maintainer Track**
+  - Requires established repositories with significant dependent packages, stars, or downstream citations.
+  - *Candidate Status:* **Not Applicable.** New project with zero historical adoption metrics.
+- **Track B: Ecosystem Impact & Critical Tooling Track**
+  - Evaluates qualitative importance to developer ecosystems, software safety, and data integrity.
+  - *Candidate Status:* While GlobalInputLab's technical architecture directly targets AI data integrity, Unicode prompt steganography, and multi-byte safety, **this track does not waive the two-year account tenure requirement**.
 
-### How Will Anthropic Credits Support the Project?
-> Credits will support automated benchmarking of frontier models (Claude 3.5 Sonnet / Claude 3 Opus) against multilingual adversarial corpora—measuring tokenization robustness, prompt-injection defense against zero-width obfuscation, and normalization consistency across non-Latin scripts (Arabic, Persian, Devanagari, CJK).
+---
+
+## 3. Explicit Status Distinctions
+
+### 3.1 Current Eligibility
+- **Verdict:** **INELIGIBLE.**
+- **Rationale:** The candidate account fails the hard two-year account tenure gate and historical contribution criteria. The application cannot proceed at this time.
+
+### 3.2 Requirements Not Met
+1. **GitHub Account Age:** Minimum requirement is 24 consecutive months; current account age is ~6.8 months.
+2. **Prior 90-Day Contribution History:** Account lacked public repository activity in the 90 days preceding project initialization.
+
+### 3.3 Future Eligibility Pathway
+- **Earliest Qualification Date:** **April 7, 2028.**
+- **Prerequisites for April 2028 Qualification:**
+  - Maintain the `@brahimbattou` account in good standing through April 2028.
+  - Maintain steady, documented open-source commits, releases, and issue responses across a consecutive 90+ day window.
+  - Maintain compliance with Anthropic's Acceptable Use Policy and Terms of Service.
+
+### 3.4 Project Impact Evidence Still Needed
+Before an application can succeed under the Ecosystem Impact Track in the future, the project must produce verifiable empirical evidence of ecosystem adoption:
+1. **Verifiable Production Adoption:** Evidence of downstream projects using `global-input-lab` in active CI/CD workflows.
+2. **Documented Bug Discoveries:** Public security advisories, CVEs, or bug reports submitted to downstream open-source libraries demonstrating defects discovered via GlobalInputLab.
+3. **Community Metrics:** Organic GitHub stars, forks, external contributor pull requests, and multi-platform packaging downloads (npm).
+4. **Third-Party Citations:** Technical articles, benchmark mentions, or security disclosures referencing the toolkit.
+
+### 3.5 Selection Uncertainty & Discretionary Nature
+Even upon meeting all eligibility criteria in April 2028:
+- Acceptance into Anthropic's Claude for Open Source program is **strictly discretionary** and subject to program capacity, annual credit budget allocations, and competitive review.
+- Meeting baseline criteria provides eligibility to be considered, **not an entitlement to acceptance**.
+
+---
+
+## 4. Remediation & Strategic Roadmap (2026–2028)
+
+To position the maintainer and project for future eligibility:
+
+1. **Publish Clean Public Repository:** Publish `global-input-lab` under `@brahimbattou` on GitHub with complete documentation, passing CI badges, and verified zero-dependency packaging.
+2. **Establish Sustained Public Commit History:** Continuously maintain test suites, expand Unicode test vectors, and release regular semantic versions over the next 18 months.
+3. **Integrate with Downstream Ecosystem:** Partner with open-source web frameworks, tokenizer libraries, and input parsers to incorporate GlobalInputLab into their automated test suites.
+4. **Re-evaluate in Q2 2028:** Formally submit an application via [https://claude.com/contact-sales/claude-for-oss](https://claude.com/contact-sales/claude-for-oss) once the two-year tenure milestone is reached on April 7, 2028.

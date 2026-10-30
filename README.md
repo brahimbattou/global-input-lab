@@ -90,8 +90,8 @@ npx global-input-lab generate --category security_adversarial --format json
 | Command | Arguments / Flags | Description |
 | :--- | :--- | :--- |
 | `audit <text\|file>` | `--json` | Inspects code points, graphemes, normalization, invisible characters, and homoglyphs. Exits with code 2 on critical security risks. |
-| `sanitize <text\|file>`| `--out <file>`, `--escape-bidi`, `--replace-homoglyphs` | Cleanses non-linguistic zero-width spaces and control characters while preserving valid language marks. |
-| `test` | `--url <url>`, `--json-path <path>`, `--command <cmd>`, `--category <cat>`, `--strict`, `--junit <file>`, `--markdown <file>` | Executes active data integrity tests against an HTTP endpoint or command, validating byte preservation. |
+| `sanitize <text\|file>`| `--out <file>`, `--strip-zero-width`, `--strip-soft-hyphens`, `--strip-math`, `--strip-controls`, `--strip-bidi`, `--escape-bidi`, `--normalize <form>`, `--replace-homoglyphs` | Genuinely non-destructive by default. Cleanses non-linguistic zero-width spaces, soft hyphens, or control codes only with explicit opt-in flags. |
+| `test` | `--url <url>`, `--json-path <path>`, `--command <cmd>`, `--framing <exact\|strip-trailing-newline\|trim>`, `--max-response-bytes <bytes>`, `--category <cat>`, `--strict`, `--junit <file>`, `--markdown <file>` | Executes active data integrity tests against an HTTP endpoint or command, validating byte preservation. |
 | `generate` | `--category <cat>`, `--format <json\|csv\|txt>`, `--out <file>` | Exports curated test suites for external tools. |
 | `fuzz` | `--field <name\|email\|identifier\|text>`, `--count <n>` | Synthesizes schema-constrained edge-case strings. |
 
@@ -123,24 +123,25 @@ for (const anomaly of report.anomalies) {
 }
 ```
 
-### 2. Non-Destructive Sanitization
+### 2. Genuinely Non-Destructive Sanitization (Opt-In Policies)
 
 ```typescript
 import { sanitizeText } from 'global-input-lab';
 
-// 1. Preserves Persian ZWNJ (U+200C)
-const persian = 'می\u200Cروم';
-const cleanPersian = sanitizeText(persian);
-console.log(cleanPersian.sanitized === persian); // true (preserved!)
+// 1. By default, sanitizeText is 100% non-destructive and preserves all valid formatting:
+const thai = 'ภาษาไทย\u200Bภาษาไทย'; // Thai with ZWSP word boundary
+const cleanThai = sanitizeText(thai);
+console.log(cleanThai.sanitized === thai); // true (preserved!)
 
-// 2. Preserves Family Emoji ZWJ (U+200D)
-const family = '👨\u200D👩\u200D👧\u200D👦';
-const cleanFamily = sanitizeText(family);
-console.log(cleanFamily.sanitized === family); // true (preserved!)
+const persian = 'می\u200Cروم'; // Persian with ZWNJ
+console.log(sanitizeText(persian).sanitized === persian); // true (preserved!)
 
-// 3. Strips adversarial invisible zero-width spaces
+const math = '2\u2062x'; // Invisible Times operator
+console.log(sanitizeText(math).sanitized === math); // true (preserved!)
+
+// 2. Destructive operations require explicit opt-in:
 const dirty = 'Safe\u200BText';
-const clean = sanitizeText(dirty);
+const clean = sanitizeText(dirty, { stripZeroWidth: true });
 console.log(clean.sanitized); // "SafeText"
 ```
 
@@ -190,12 +191,18 @@ open demo/index.html
 ## Diagnostic Scope & Limitations
 
 > [!IMPORTANT]
-> **What GlobalInputLab does:** Audits character encodings, identifies non-printable control characters, detects directional overrides (Trojan Source), and measures round-trip byte preservation across storage and transport boundaries.
+> **What GlobalInputLab does:** Audits character encodings, identifies non-printable control characters, detects directional overrides (Trojan Source), tests round-trip byte preservation across storage/transport boundaries, and alerts on cross-script mixed confusables based on a versioned curated subset of Unicode Technical Standard #39.
 >
 > **What GlobalInputLab does NOT do:**
 > - Unicode scanning does **not** replace application-level authorization, authentication, or input schema validation.
 > - Unicode scanning does **not** replace parameterized SQL queries or Content Security Policies (CSP).
-> - Homoglyph detection identifies visual confusables based on UTS #39. Legitimate multilingual applications handling Cyrillic, Greek, or Arabic content must not automatically convert genuine words into Latin lookalikes.
+> - Homoglyph detection implements a curated security subset of UTS #39 (v15.1.0). Legitimate multilingual applications handling Cyrillic, Greek, or Arabic content must not automatically convert genuine words into Latin lookalikes.
+> - GlobalInputLab tests text encoding, serialization, and API handling—it does **not** directly execute against internal neural network model weights or tokenizer vocabularies without an API wrapper.
+
+> [!CAUTION]
+> **Operational Safety Warning for Active Testing:**
+> - Probing HTTP endpoints and shell commands sends actual test payloads (including edge cases and adversarial strings) to target processes. **Never run active probes against production systems or third-party endpoints without prior authorization.**
+> - Command probing executes local binaries with the ambient permissions of the current shell user. Only probe trusted, non-destructive test scripts or local echo binaries. Configurable maximum response limits (`--max-response-bytes`, default 10 MB) are enforced to protect against memory exhaustion.
 
 ---
 

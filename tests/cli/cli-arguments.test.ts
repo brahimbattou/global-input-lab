@@ -64,6 +64,7 @@ test('CLI Arguments - sanitize writes clean text to --out path', async () => {
       CLI_PATH,
       'sanitize',
       'Hello\u200B World!',
+      '--strip-zero-width',
       '--out',
       tmpFile,
     ]);

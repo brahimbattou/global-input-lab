@@ -2,6 +2,7 @@
  * GlobalInputLab - Test Runner
  * Executes active data integrity tests against HTTP endpoints or shell processes.
  * Enforces strict response verification, separating transport status from data integrity.
+ * Hardened with resource boundaries, exact stdout framing, and timeout management.
  * (c) 2026 Brahim Battou. MIT License.
  */
 
@@ -10,7 +11,41 @@ import https from 'https';
 import { spawn } from 'child_process';
 import { RoundTripVerifier } from '../core/round-trip.js';
 import { TestSuiteManager } from '../core/test-suites.js';
-import { SingleTestResult, TestCase, TestOutcome, TestRunOptions, TestRunReport } from '../types.js';
+import { OutputFramingPolicy, SingleTestResult, TestCase, TestOutcome, TestRunOptions, TestRunReport } from '../types.js';
+
+/**
+ * Safely parses a command line string into an executable and argument array,
+ * respecting double and single quotes without invoking a shell.
+ */
+export function parseCommandLine(cmd: string): { executable: string; args: string[] } {
+  const tokens: string[] = [];
+  let current = '';
+  let inDoubleQuote = false;
+  let inSingleQuote = false;
+
+  for (let i = 0; i < cmd.length; i++) {
+    const char = cmd[i];
+    if (char === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+    } else if (char === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+    } else if (/\s/.test(char) && !inDoubleQuote && !inSingleQuote) {
+      if (current.length > 0) {
+        tokens.push(current);
+        current = '';
+      }
+    } else {
+      current += char;
+    }
+  }
+  if (current.length > 0) {
+    tokens.push(current);
+  }
+
+  const executable = tokens[0] || '';
+  const args = tokens.slice(1);
+  return { executable, args };
+}
 
 export class TestRunner {
   private suiteManager: TestSuiteManager;
@@ -64,8 +99,8 @@ export class TestRunner {
           if (res.outcome === 'passed') passed++;
           else if (res.outcome === 'failed') failed++;
           else inconclusive++;
-        } else if (options.targetCommand) {
-          const res = await this.probeCommand(tc, options.targetCommand, options);
+        } else if (options.targetCommand || options.commandConfig) {
+          const res = await this.probeCommand(tc, options.targetCommand || '', options);
           results.push(res);
           if (res.outcome === 'passed') passed++;
           else if (res.outcome === 'failed') failed++;
@@ -130,7 +165,8 @@ export class TestRunner {
   }
 
   /**
-   * Probes an HTTP endpoint, separating transport status from actual data preservation
+   * Probes an HTTP endpoint, separating transport status from actual data preservation.
+   * Enforces configurable maximum response body size to avoid unbounded memory accumulation.
    */
   public async probeHttpEndpoint(
     tc: TestCase,
@@ -138,6 +174,7 @@ export class TestRunner {
     options: TestRunOptions
   ): Promise<SingleTestResult> {
     const start = Date.now();
+    const maxBytes = options.maxResponseBytes || 10 * 1024 * 1024; // 10MB default
 
     let url: URL;
     try {
@@ -173,6 +210,14 @@ export class TestRunner {
     const postData = bodyTemplate.replace('{PAYLOAD}', escapedPayload);
 
     return new Promise<SingleTestResult>((resolve) => {
+      let isResolved = false;
+      const safeResolve = (res: SingleTestResult) => {
+        if (!isResolved) {
+          isResolved = true;
+          resolve(res);
+        }
+      };
+
       const req = client.request(
         url,
         {
@@ -187,15 +232,34 @@ export class TestRunner {
         },
         (res: http.IncomingMessage) => {
           let responseBody = '';
+          let receivedBytes = 0;
           res.setEncoding('utf8');
-          res.on('data', (chunk: string) => (responseBody += chunk));
+
+          res.on('data', (chunk: string) => {
+            receivedBytes += Buffer.byteLength(chunk, 'utf8');
+            if (receivedBytes > maxBytes) {
+              req.destroy();
+              return safeResolve({
+                testCase: tc,
+                outcome: 'failed',
+                passed: false,
+                transportOk: false,
+                dataPreserved: false,
+                statusCode: res.statusCode || 0,
+                durationMs: Date.now() - start,
+                error: `HTTP response exceeded maximum permitted size of ${maxBytes} bytes.`,
+              });
+            }
+            responseBody += chunk;
+          });
+
           res.on('end', () => {
             const durationMs = Date.now() - start;
             const statusCode = res.statusCode || 0;
             const transportOk = statusCode >= 200 && statusCode < 300;
 
             if (!transportOk) {
-              return resolve({
+              return safeResolve({
                 testCase: tc,
                 outcome: 'failed',
                 passed: false,
@@ -216,7 +280,7 @@ export class TestRunner {
                 const parsed = JSON.parse(responseBody);
                 const extracted = this.extractJsonPath(parsed, options.jsonPath);
                 if (extracted === undefined) {
-                  return resolve({
+                  return safeResolve({
                     testCase: tc,
                     outcome: 'failed',
                     passed: false,
@@ -230,7 +294,7 @@ export class TestRunner {
                 }
                 extractedPayload = typeof extracted === 'string' ? extracted : JSON.stringify(extracted);
               } catch (e) {
-                return resolve({
+                return safeResolve({
                   testCase: tc,
                   outcome: 'failed',
                   passed: false,
@@ -265,7 +329,7 @@ export class TestRunner {
 
             // If no echo payload could be extracted (e.g. HTTP 204 No Content, or standard acknowledgment like {"status":"ok"})
             if (extractedPayload === undefined) {
-              return resolve({
+              return safeResolve({
                 testCase: tc,
                 outcome: 'inconclusive',
                 passed: false,
@@ -283,7 +347,7 @@ export class TestRunner {
             const passed = rt.identical;
             const outcome: TestOutcome = passed ? 'passed' : 'failed';
 
-            resolve({
+            safeResolve({
               testCase: tc,
               outcome,
               passed,
@@ -301,7 +365,7 @@ export class TestRunner {
       );
 
       req.on('error', (err: Error) => {
-        resolve({
+        safeResolve({
           testCase: tc,
           outcome: 'failed',
           passed: false,
@@ -314,7 +378,7 @@ export class TestRunner {
 
       req.on('timeout', () => {
         req.destroy();
-        resolve({
+        safeResolve({
           testCase: tc,
           outcome: 'failed',
           passed: false,
@@ -332,7 +396,8 @@ export class TestRunner {
 
   /**
    * Probes a local executable safely using spawn with explicit argument array and shell disabled.
-   * Avoids shell interpolation vulnerabilities.
+   * Avoids shell interpolation vulnerabilities, applies explicit output framing (exact, strip-trailing-newline, or trim),
+   * sets timedOut flag properly, and bounds stdout accumulation.
    */
   public async probeCommand(
     tc: TestCase,
@@ -340,33 +405,86 @@ export class TestRunner {
     options: TestRunOptions
   ): Promise<SingleTestResult> {
     const start = Date.now();
+    const maxBytes = options.maxResponseBytes || 10 * 1024 * 1024;
+    const framing: OutputFramingPolicy = options.outputFraming || 'exact';
+    const timeoutMs = options.timeoutMs || 5000;
 
-    // Parse command into binary and arguments safely without running through a shell
-    const parts = commandStr.trim().split(/\s+/);
-    const binary = parts[0];
-    const baseArgs = parts.slice(1);
-    const fullArgs = [...baseArgs, tc.payload];
+    let binary: string;
+    let fullArgs: string[];
+
+    if (options.commandConfig) {
+      binary = options.commandConfig.executable;
+      fullArgs = [...(options.commandConfig.args || []), tc.payload];
+    } else {
+      const parsed = parseCommandLine(commandStr);
+      binary = parsed.executable;
+      fullArgs = [...parsed.args, tc.payload];
+    }
+
+    if (!binary) {
+      return {
+        testCase: tc,
+        outcome: 'failed',
+        passed: false,
+        transportOk: false,
+        dataPreserved: false,
+        durationMs: 0,
+        error: 'No executable specified for command probe.',
+      };
+    }
 
     return new Promise<SingleTestResult>((resolve) => {
       let stdout = '';
       let stderr = '';
+      let stdoutBytes = 0;
       let timedOut = false;
+      let isResolved = false;
+
+      const safeResolve = (res: SingleTestResult) => {
+        if (!isResolved) {
+          isResolved = true;
+          clearTimeout(timer);
+          resolve(res);
+        }
+      };
+
+      const timer = setTimeout(() => {
+        timedOut = true;
+        try {
+          child.kill('SIGTERM');
+          setTimeout(() => {
+            try { child.kill('SIGKILL'); } catch {}
+          }, 500);
+        } catch {}
+      }, timeoutMs);
 
       const child = spawn(binary, fullArgs, {
         shell: false, // CRITICAL: shell execution disabled to prevent command injection
-        timeout: options.timeoutMs || 5000,
       });
 
-      child.stdout.on('data', (data) => {
+      child.stdout.on('data', (data: Buffer) => {
+        stdoutBytes += data.length;
+        if (stdoutBytes > maxBytes) {
+          child.kill('SIGKILL');
+          return safeResolve({
+            testCase: tc,
+            outcome: 'failed',
+            passed: false,
+            transportOk: false,
+            dataPreserved: false,
+            durationMs: Date.now() - start,
+            error: `Process output exceeded maximum permitted size of ${maxBytes} bytes.`,
+          });
+        }
         stdout += data.toString('utf8');
       });
 
-      child.stderr.on('data', (data) => {
+      child.stderr.on('data', (data: Buffer) => {
         stderr += data.toString('utf8');
       });
 
       child.on('error', (err) => {
-        resolve({
+        safeResolve({
           testCase: tc,
           outcome: 'failed',
           passed: false,
@@ -379,21 +497,22 @@ export class TestRunner {
 
       child.on('close', (code, signal) => {
         const durationMs = Date.now() - start;
-        if (signal === 'SIGTERM' && timedOut) {
-          return resolve({
+
+        if (timedOut || signal === 'SIGTERM') {
+          return safeResolve({
             testCase: tc,
             outcome: 'failed',
             passed: false,
             transportOk: false,
             dataPreserved: false,
             durationMs,
-            error: `Process timed out after ${options.timeoutMs || 5000}ms`,
+            error: `Process timed out after ${timeoutMs}ms`,
           });
         }
 
         const transportOk = code === 0;
         if (!transportOk) {
-          return resolve({
+          return safeResolve({
             testCase: tc,
             outcome: 'failed',
             passed: false,
@@ -404,11 +523,23 @@ export class TestRunner {
           });
         }
 
-        const trimmedOut = stdout.trim();
-        const rt = this.roundTripVerifier.verify(tc.payload, trimmedOut);
+        // Apply explicit output framing policy
+        let extractedPayload: string;
+        if (framing === 'exact') {
+          // Default: exact preservation - NEVER silently trim whitespace!
+          extractedPayload = stdout;
+        } else if (framing === 'strip-trailing-newline') {
+          // Strip only a single trailing newline if present, preserving leading whitespace
+          extractedPayload = stdout.replace(/\r?\n$/, '');
+        } else {
+          // Explicit 'trim' opted in
+          extractedPayload = stdout.trim();
+        }
+
+        const rt = this.roundTripVerifier.verify(tc.payload, extractedPayload);
         const passed = rt.identical;
 
-        resolve({
+        safeResolve({
           testCase: tc,
           outcome: passed ? 'passed' : 'failed',
           passed,
@@ -416,7 +547,7 @@ export class TestRunner {
           dataPreserved: passed,
           durationMs,
           receivedPayload: stdout,
-          extractedPayload: trimmedOut,
+          extractedPayload,
           roundTrip: rt,
           error: passed ? undefined : (rt.diffDescription || 'Process output did not match input payload.'),
         });

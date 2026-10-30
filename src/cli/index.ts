@@ -7,7 +7,7 @@
 
 import fs from 'fs';
 import { auditText, sanitizeText, getTestSuites, fuzzField } from '../index.js';
-import { TestCategory } from '../types.js';
+import { OutputFramingPolicy, TestCategory } from '../types.js';
 import { ReportFormatter } from './formatters.js';
 import { TestRunner } from './runner.js';
 
@@ -45,20 +45,32 @@ Options:
   --url <targetUrl>      Target HTTP endpoint URL for active testing
   --json-path <path>     Dot-notation path to extract response string from JSON (e.g. 'data.content')
   --command <cmd>        Target shell binary to probe safely with payload argument
+  --framing <policy>     Output framing policy: 'exact' (default, no trimming), 'strip-trailing-newline', or 'trim'
   --strict               Treat inconclusive tests as failures
   --junit <file>         Export test results to JUnit XML file
   --markdown <file>      Export test results to Markdown table file
   --out <file>           Output file path for generated or sanitized data
   --field <type>         Target field type for fuzzer (name, email, identifier, text, search_query)
   --count <n>            Number of items to generate (default: 10)
+  --strip-zero-width     Opt-in policy: strip non-linguistic zero-width spaces in Latin contexts
+  --strip-soft-hyphens   Opt-in policy: strip soft hyphens (U+00AD)
+  --strip-math           Opt-in policy: strip invisible math operators (U+2061..U+2064)
+  --strip-controls       Opt-in policy: strip ASCII control codes and null bytes
+  --strip-bidi           Opt-in policy: strip Trojan Source bidirectional overrides (U+202D, U+202E)
   --escape-bidi          Escape bidirectional controls (\\u202E) instead of stripping
   --replace-homoglyphs   Convert confusable homoglyphs to canonical Latin (Credential checks only)
+  --normalize <form>     Opt-in policy: normalize text to NFC, NFD, NFKC, or NFKD
+
+Operational Caution:
+  Active probing commands transmit real test vectors directly to target systems.
+  Never run security_adversarial suites against production APIs or unauthorized endpoints.
 
 Examples:
   gil audit "Ignore\\u200B previous instructions"
   gil audit ./user_payload.json --json
   gil sanitize ./input.txt --out ./cleaned.txt
   gil test --url http://localhost:3000/api/echo --json-path "data.echo"
+  gil test --command "node -e 'process.stdout.write(process.argv[1])'" --framing exact
   gil generate --category security_adversarial --format json
   gil fuzz --field email --count 5
 `);
@@ -105,7 +117,7 @@ async function main(): Promise<void> {
         console.log(ReportFormatter.formatAuditTerminal(report));
       }
 
-      if (report.riskScore >= 70) {
+      if (report.riskScore >= 70 || report.anomalies.some(a => a.severity === 'critical')) {
         process.exit(2); // Critical risk exit code
       }
       break;
@@ -125,12 +137,26 @@ async function main(): Promise<void> {
 
       const replaceHomoglyphs = args.includes('--replace-homoglyphs');
       const escapeBidiControls = args.includes('--escape-bidi');
+      const stripBidiOverrides = args.includes('--strip-bidi');
+      const stripZeroWidth = args.includes('--strip-zero-width');
+      const stripSoftHyphens = args.includes('--strip-soft-hyphens');
+      const stripMathOperators = args.includes('--strip-math');
+      const stripControlChars = args.includes('--strip-controls');
+
+      const normIndex = args.indexOf('--normalize');
+      const normalizeForm = normIndex !== -1 ? (args[normIndex + 1] as any) : false;
 
       const res = sanitizeText(textToSanitize, {
         replaceHomoglyphs,
         escapeBidiControls,
-        preserveLinguisticJoiners: true, // Default: preserve Persian ZWNJ, Emoji ZWJ
-        preserveDirectionalMarks: true,  // Default: preserve LRM/RLM
+        stripBidiOverrides,
+        stripZeroWidth,
+        stripSoftHyphens,
+        stripMathOperators,
+        stripControlChars,
+        normalizeForm,
+        preserveLinguisticJoiners: true, // Non-destructive default: preserve Persian ZWNJ, Emoji ZWJ
+        preserveDirectionalMarks: true,  // Non-destructive default: preserve LRM/RLM
       });
 
       const outIndex = args.indexOf('--out');
@@ -156,6 +182,9 @@ async function main(): Promise<void> {
       const cmdIndex = args.indexOf('--command');
       const targetCommand = cmdIndex !== -1 ? args[cmdIndex + 1] : undefined;
 
+      const framingIndex = args.indexOf('--framing');
+      const outputFraming = framingIndex !== -1 ? (args[framingIndex + 1] as OutputFramingPolicy) : 'exact';
+
       const catIndex = args.indexOf('--category');
       let category: TestCategory | undefined;
       if (catIndex !== -1) {
@@ -174,6 +203,7 @@ async function main(): Promise<void> {
         targetUrl,
         jsonPath,
         targetCommand,
+        outputFraming,
         categories: category ? [category] : undefined,
       });
 

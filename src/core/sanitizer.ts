@@ -1,15 +1,19 @@
 /**
  * GlobalInputLab - Text Sanitizer
- * Configurable, non-destructive-by-default sanitization engine.
- * Preserves linguistic joiners (ZWNJ in Persian, ZWJ in emoji) and directional marks (LRM/RLM).
+ * Configurable, genuinely non-destructive-by-default sanitization engine.
+ * Preserves linguistic joiners, word-break markers (Thai/Khmer/Lao/Myanmar ZWSP),
+ * soft hyphens, mathematical operators, and directional marks unless explicitly opted in.
  * (c) 2026 Brahim Battou. MIT License.
  */
 
 import { SanitizeOptions, SanitizeResult } from '../types.js';
 import { HomoglyphDetector } from './homoglyph-detector.js';
 
-// Non-linguistic zero-width characters that serve no text formatting function
-const NON_LINGUISTIC_ZERO_WIDTH_REGEX = /[\u200B\uFEFF\u2060\u180E\u00AD\u2061\u2062\u2063\u2064]/g;
+// Unicode Script Extensions regex tests using standard property escapes
+const SCRIPT_BREAK_REGEX = /[\p{scx=Thai}\p{scx=Khmer}\p{scx=Lao}\p{scx=Myanmar}]/u;
+const COMPLEX_SCRIPT_REGEX = /[\p{scx=Arabic}\p{scx=Hebrew}\p{scx=Devanagari}\p{scx=Bengali}\p{scx=Tamil}\p{scx=Telugu}\p{scx=Kannada}\p{scx=Malayalam}\p{scx=Gujarati}\p{scx=Gurmukhi}\p{scx=Oriya}\p{scx=Sinhala}\p{scx=Tibetan}]/u;
+const EMOJI_REGEX = /[\p{Extended_Pictographic}\uFE0E\uFE0F\u{1F3FB}-\u{1F3FF}]/u;
+const MONGOLIAN_REGEX = /\p{scx=Mongolian}/u;
 
 // Dangerous bidirectional overrides (Trojan Source: LRO, RLO)
 const BIDI_OVERRIDE_REGEX = /[\u202D\u202E]/g;
@@ -20,7 +24,16 @@ const ALL_BIDI_CONTROLS_REGEX = /[\u202A\u202B\u202C\u202D\u202E\u2066\u2067\u20
 // Dangerous non-printable ASCII/C1 control characters (preserving \t, \n, \r)
 const CONTROL_CHAR_REGEX = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g;
 
-// Stacked combining marks (4 or more consecutive combining marks)
+// Invisible mathematical operators
+const MATH_OPERATOR_REGEX = /[\u2061-\u2064]/g;
+
+// Soft hyphen
+const SOFT_HYPHEN_REGEX = /\u00AD/g;
+
+// Word joiner
+const WORD_JOINER_REGEX = /\u2060/g;
+
+// Stacked combining marks (4 or more consecutive combining marks outside Indic/Thai/Khmer/Myanmar scripts)
 const ZALGO_REGEX = /([\u0300-\u036F\u1AB0-\u1AFF\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F]{3})[\u0300-\u036F\u1AB0-\u1AFF\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F]+/g;
 
 export class Sanitizer {
@@ -30,115 +43,152 @@ export class Sanitizer {
     this.homoglyphDetector = new HomoglyphDetector();
   }
 
-  private isPersoArabicOrIndic(cp: number): boolean {
+  private isScriptWordBreakContext(charBefore?: string, charAfter?: string): boolean {
     return (
-      (cp >= 0x0600 && cp <= 0x06ff) ||
-      (cp >= 0x0750 && cp <= 0x077f) ||
-      (cp >= 0x08a0 && cp <= 0x08ff) ||
-      (cp >= 0x0590 && cp <= 0x05ff) ||
-      (cp >= 0x0900 && cp <= 0x097f) ||
-      (cp >= 0x0980 && cp <= 0x09ff)
+      (charBefore !== undefined && SCRIPT_BREAK_REGEX.test(charBefore)) ||
+      (charAfter !== undefined && SCRIPT_BREAK_REGEX.test(charAfter))
     );
   }
 
-  private isEmoji(cp: number): boolean {
+  private isComplexScriptContext(charBefore?: string, charAfter?: string): boolean {
     return (
-      (cp >= 0x1f300 && cp <= 0x1faff) ||
-      (cp >= 0x2600 && cp <= 0x27bf) ||
-      (cp >= 0xfe00 && cp <= 0xfe0f)
+      (charBefore !== undefined && COMPLEX_SCRIPT_REGEX.test(charBefore)) ||
+      (charAfter !== undefined && COMPLEX_SCRIPT_REGEX.test(charAfter))
+    );
+  }
+
+  private isEmojiContext(charBefore?: string, charAfter?: string): boolean {
+    return (
+      (charBefore !== undefined && EMOJI_REGEX.test(charBefore)) ||
+      (charAfter !== undefined && EMOJI_REGEX.test(charAfter))
     );
   }
 
   /**
-   * Sanitizes input text according to explicit, non-destructive-by-default policies.
+   * Sanitizes input text according to explicit, genuinely non-destructive-by-default policies.
+   * By default, returns text identical to input without unintended character stripping.
    */
   public sanitize(text: string, options: SanitizeOptions = {}): SanitizeResult {
     const opts: Required<SanitizeOptions> = {
-      stripZeroWidth: options.stripZeroWidth ?? true,
+      stripZeroWidth: options.stripZeroWidth ?? false, // Non-destructive default
+      stripSoftHyphens: options.stripSoftHyphens ?? false, // Non-destructive default
+      stripMathOperators: options.stripMathOperators ?? false, // Non-destructive default
+      stripWordJoiners: options.stripWordJoiners ?? false, // Non-destructive default
       preserveLinguisticJoiners: options.preserveLinguisticJoiners ?? true,
       preserveDirectionalMarks: options.preserveDirectionalMarks ?? true,
-      stripBidiOverrides: options.stripBidiOverrides ?? true,
+      stripBidiOverrides: options.stripBidiOverrides ?? false, // Explicit opt-in policy
       escapeBidiControls: options.escapeBidiControls ?? false,
-      stripControlChars: options.stripControlChars ?? true,
+      stripControlChars: options.stripControlChars ?? false, // Explicit opt-in policy
+      stripNullBytes: options.stripNullBytes ?? false, // Explicit opt-in policy
       replaceHomoglyphs: options.replaceHomoglyphs ?? false,
-      normalizeForm: options.normalizeForm ?? 'NFC',
-      stripZalgo: options.stripZalgo ?? true,
+      normalizeForm: options.normalizeForm ?? false, // No silent normalization by default
+      stripZalgo: options.stripZalgo ?? false, // Explicit opt-in policy
     };
 
     let result = text;
     const operationsApplied: string[] = [];
 
-    // 1. Strip non-printable control characters (null bytes, C0/C1)
+    // 1. Strip null bytes if explicitly requested
+    if (opts.stripNullBytes && result.includes('\u0000')) {
+      result = result.replace(/\u0000/g, '');
+      operationsApplied.push('strip_null_bytes');
+    }
+
+    // 2. Strip non-printable control characters (C0/C1) if explicitly requested
     if (opts.stripControlChars && CONTROL_CHAR_REGEX.test(result)) {
       result = result.replace(CONTROL_CHAR_REGEX, '');
       operationsApplied.push('strip_control_characters');
     }
 
-    // 2. Handle Zero-Width & Invisible Characters
+    // 3. Strip soft hyphens if specifically requested
+    if (opts.stripSoftHyphens && SOFT_HYPHEN_REGEX.test(result)) {
+      result = result.replace(SOFT_HYPHEN_REGEX, '');
+      operationsApplied.push('strip_soft_hyphens');
+    }
+
+    // 4. Strip invisible mathematical operators if specifically requested
+    if (opts.stripMathOperators && MATH_OPERATOR_REGEX.test(result)) {
+      result = result.replace(MATH_OPERATOR_REGEX, '');
+      operationsApplied.push('strip_math_operators');
+    }
+
+    // 5. Strip word joiners if specifically requested
+    if (opts.stripWordJoiners && WORD_JOINER_REGEX.test(result)) {
+      result = result.replace(WORD_JOINER_REGEX, '');
+      operationsApplied.push('strip_word_joiners');
+    }
+
+    // 6. Handle Zero-Width characters when explicitly requested
     if (opts.stripZeroWidth) {
-      // Always strip non-linguistic zero-width characters (ZWSP, BOM mid-text, WJ)
-      if (NON_LINGUISTIC_ZERO_WIDTH_REGEX.test(result)) {
-        result = result.replace(NON_LINGUISTIC_ZERO_WIDTH_REGEX, '');
-        operationsApplied.push('strip_non_linguistic_zero_width');
+      const chars = Array.from(result);
+      let modified = false;
+      const filtered: string[] = [];
+
+      for (let i = 0; i < chars.length; i++) {
+        const char = chars[i];
+        const cp = char.codePointAt(0);
+        const prevChar = i > 0 ? chars[i - 1] : undefined;
+        const nextChar = i + 1 < chars.length ? chars[i + 1] : undefined;
+
+        if (cp === 0x200b) {
+          // Zero-width space:
+          // Preserve if in Thai, Khmer, Lao, Myanmar script contexts
+          if (this.isScriptWordBreakContext(prevChar, nextChar)) {
+            filtered.push(char); // Legitimate word boundary preserved!
+          } else {
+            modified = true; // Strip orphaned ZWSP in Latin or non-word-break contexts
+          }
+        } else if (cp === 0x200c) {
+          // ZWNJ:
+          if (opts.preserveLinguisticJoiners && this.isComplexScriptContext(prevChar, nextChar)) {
+            filtered.push(char); // Legitimate Persian/Arabic/Indic ZWNJ preserved!
+          } else if (opts.preserveLinguisticJoiners && !this.isComplexScriptContext(prevChar, nextChar)) {
+            modified = true; // Strip orphaned ZWNJ in Latin
+          } else if (!opts.preserveLinguisticJoiners) {
+            modified = true; // User explicitly requested stripping all joiners
+          } else {
+            filtered.push(char);
+          }
+        } else if (cp === 0x200d) {
+          // ZWJ:
+          if (opts.preserveLinguisticJoiners && (this.isEmojiContext(prevChar, nextChar) || this.isComplexScriptContext(prevChar, nextChar))) {
+            filtered.push(char); // Legitimate Emoji or Indic ligature preserved!
+          } else if (opts.preserveLinguisticJoiners && !(this.isEmojiContext(prevChar, nextChar) || this.isComplexScriptContext(prevChar, nextChar))) {
+            modified = true; // Strip orphaned ZWJ in Latin
+          } else if (!opts.preserveLinguisticJoiners) {
+            modified = true; // User explicitly requested stripping all joiners
+          } else {
+            filtered.push(char);
+          }
+        } else if (cp === 0xfeff) {
+          // BOM mid-string: strip if stripZeroWidth is enabled
+          modified = true;
+        } else if (cp === 0x180e) {
+          // Mongolian vowel separator: preserve if adjacent to Mongolian
+          if ((prevChar && MONGOLIAN_REGEX.test(prevChar)) || (nextChar && MONGOLIAN_REGEX.test(nextChar))) {
+            filtered.push(char);
+          } else {
+            modified = true;
+          }
+        } else if (cp === 0x200e || cp === 0x200f) {
+          if (opts.preserveDirectionalMarks) {
+            filtered.push(char);
+          } else {
+            modified = true;
+          }
+        } else {
+          filtered.push(char);
+        }
       }
 
-      // Handle ZWNJ (U+200C) and ZWJ (U+200D)
-      if (!opts.preserveLinguisticJoiners) {
-        // Blind removal requested explicitly by policy
-        result = result.replace(/[\u200C\u200D]/g, '');
-        operationsApplied.push('strip_all_joiners_explicit');
-      } else {
-        // Smart contextual preservation:
-        // Strip ZWNJ/ZWJ ONLY when orphaned in Latin/ASCII contexts
-        const chars = Array.from(result);
-        let modified = false;
-        const filteredChars: string[] = [];
-
-        for (let i = 0; i < chars.length; i++) {
-          const char = chars[i];
-          const cp = char.codePointAt(0);
-          const prevCp = i > 0 ? chars[i - 1].codePointAt(0) : undefined;
-          const nextCp = i + 1 < chars.length ? chars[i + 1].codePointAt(0) : undefined;
-
-          if (cp === 0x200c) {
-            // ZWNJ: preserve in Persian/Arabic/Indic (e.g. می\u200Cروم)
-            const isLinguistic = (prevCp && this.isPersoArabicOrIndic(prevCp)) || (nextCp && this.isPersoArabicOrIndic(nextCp));
-            if (isLinguistic) {
-              filteredChars.push(char);
-            } else {
-              modified = true; // Strip orphaned ZWNJ in Latin text
-            }
-          } else if (cp === 0x200d) {
-            // ZWJ: preserve in Emoji sequence or Indic ligature
-            const isLinguistic = (prevCp && (this.isEmoji(prevCp) || this.isPersoArabicOrIndic(prevCp))) ||
-                                 (nextCp && (this.isEmoji(nextCp) || this.isPersoArabicOrIndic(nextCp)));
-            if (isLinguistic) {
-              filteredChars.push(char);
-            } else {
-              modified = true; // Strip orphaned ZWJ in Latin text
-            }
-          } else if (cp === 0x200e || cp === 0x200f) {
-            // Directional marks LRM / RLM
-            if (opts.preserveDirectionalMarks) {
-              filteredChars.push(char);
-            } else {
-              modified = true;
-            }
-          } else {
-            filteredChars.push(char);
-          }
-        }
-
-        if (modified) {
-          result = filteredChars.join('');
-          operationsApplied.push('strip_orphaned_joiners');
-        }
+      if (modified) {
+        result = filtered.join('');
+        operationsApplied.push('strip_zero_width_characters');
       }
     }
 
-    // 3. Handle Bidirectional Overrides
+    // 7. Handle Bidirectional Overrides
     if (opts.escapeBidiControls) {
-      // Truly escape bidi controls to \uXXXX literals instead of deleting
       if (ALL_BIDI_CONTROLS_REGEX.test(result)) {
         result = result.replace(ALL_BIDI_CONTROLS_REGEX, (ch) => {
           return '\\u' + ch.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0');
@@ -146,26 +196,25 @@ export class Sanitizer {
         operationsApplied.push('escape_bidi_controls');
       }
     } else if (opts.stripBidiOverrides) {
-      // Remove dangerous overrides (LRO, RLO)
       if (BIDI_OVERRIDE_REGEX.test(result)) {
         result = result.replace(BIDI_OVERRIDE_REGEX, '');
         operationsApplied.push('strip_bidi_overrides');
       }
     }
 
-    // 4. Strip Zalgo / Stacked Combining Diacritics
+    // 8. Strip Zalgo / Stacked Combining Diacritics if explicitly opted in
     if (opts.stripZalgo && ZALGO_REGEX.test(result)) {
       result = result.replace(ZALGO_REGEX, '$1');
       operationsApplied.push('truncate_stacked_diacritics');
     }
 
-    // 5. Replace Homoglyphs with Canonical Latin (Explicit opt-in only)
+    // 9. Replace Homoglyphs with Canonical Latin (Explicit opt-in only)
     if (opts.replaceHomoglyphs && this.homoglyphDetector.hasConfusables(result)) {
       result = this.homoglyphDetector.canonicalize(result);
       operationsApplied.push('canonicalize_homoglyphs');
     }
 
-    // 6. Normalization Form (NFC by default)
+    // 10. Normalization Form (Explicit opt-in only, no silent normalization)
     if (opts.normalizeForm) {
       const normalized = result.normalize(opts.normalizeForm);
       if (normalized !== result) {

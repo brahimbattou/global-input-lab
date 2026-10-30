@@ -10,6 +10,7 @@ test('Sanitizer - strips zero-width and invisible characters', () => {
   assert.equal(res.sanitized, 'Hello World!');
   assert.equal(res.changed, true);
   assert.ok(
+    res.operationsApplied.includes('strip_zero_width_characters') ||
     res.operationsApplied.includes('strip_non_linguistic_zero_width') ||
     res.operationsApplied.includes('strip_orphaned_joiners')
   );

@@ -75,16 +75,38 @@ export interface HomoglyphMatch {
 export interface HomoglyphReport {
   input: string;
   hasHomoglyphs: boolean;
+  standardsVersion: string; // e.g. 'UTS #39 v15.1.0'
+  datasetScope: 'curated-security-subset';
   matches: HomoglyphMatch[];
   normalizedLatinPreview: string;
 }
 
 export interface SanitizeOptions {
   /**
-   * Strip orphaned zero-width spaces (U+200B, U+FEFF BOM, U+2060).
-   * Default: true.
+   * Strip orphaned zero-width spaces (U+200B in non-script-break contexts, U+FEFF BOM).
+   * Note: In languages without inter-word spacing (Thai, Khmer, Lao, Myanmar),
+   * U+200B is preserved as a legitimate word separator.
+   * Default: false (preserves text formatting by default).
    */
   stripZeroWidth?: boolean;
+
+  /**
+   * Specifically strip soft hyphens (U+00AD).
+   * Default: false (preserves typographical discretionary hyphenation).
+   */
+  stripSoftHyphens?: boolean;
+
+  /**
+   * Specifically strip invisible mathematical operators (U+2061, U+2062, U+2063, U+2064).
+   * Default: false (preserves mathematical notation).
+   */
+  stripMathOperators?: boolean;
+
+  /**
+   * Specifically strip word joiners (U+2060).
+   * Default: false.
+   */
+  stripWordJoiners?: boolean;
 
   /**
    * Preserve legitimate linguistic joiners (ZWNJ U+200C in Persian/Arabic/Indic and ZWJ U+200D in emojis).
@@ -100,7 +122,7 @@ export interface SanitizeOptions {
 
   /**
    * Remove dangerous bidirectional overrides (LRO U+202D, RLO U+202E).
-   * Default: true.
+   * Default: false (explicit opt-in policy).
    */
   stripBidiOverrides?: boolean;
 
@@ -111,13 +133,19 @@ export interface SanitizeOptions {
   escapeBidiControls?: boolean;
 
   /**
-   * Strip non-printable ASCII/C1 control characters (null bytes, C0/C1) while preserving \t, \n, \r.
-   * Default: true.
+   * Strip non-printable ASCII/C1 control characters while preserving \t, \n, \r.
+   * Default: false (explicit opt-in policy).
    */
   stripControlChars?: boolean;
 
   /**
-   * Canonicalize confusables to Latin base equivalents.
+   * Strip null bytes (U+0000).
+   * Default: false (explicit opt-in policy).
+   */
+  stripNullBytes?: boolean;
+
+  /**
+   * Canonicalize confusables to Latin base equivalents (UTS #39 curated subset).
    * WARNING: Destructive to non-Latin languages. Must only be used for credential spoofing checks.
    * Default: false.
    */
@@ -125,13 +153,13 @@ export interface SanitizeOptions {
 
   /**
    * Normalize text into canonical composition form.
-   * Default: 'NFC'. Set to false to disable normalization.
+   * Default: false (preserves exact input byte sequence).
    */
   normalizeForm?: 'NFC' | 'NFD' | 'NFKC' | 'NFKD' | false;
 
   /**
    * Limit stacked combining diacritical marks (e.g. Zalgo text) to max 3 per base character.
-   * Default: true.
+   * Default: false (preserves stacked marks unless explicitly opted in).
    */
   stripZalgo?: boolean;
 }
@@ -183,11 +211,21 @@ export interface FuzzOptions {
 
 export type TestOutcome = 'passed' | 'failed' | 'inconclusive';
 
+export type OutputFramingPolicy = 'exact' | 'trim' | 'strip-trailing-newline';
+
+export interface CommandConfig {
+  executable: string;
+  args?: string[];
+}
+
 export interface TestRunOptions {
   targetUrl?: string;
   targetCommand?: string;
+  commandConfig?: CommandConfig;
   categories?: TestCategory[];
   timeoutMs?: number;
+  maxResponseBytes?: number; // Limit maximum response body size (default: 10MB)
+  outputFraming?: OutputFramingPolicy; // Default: 'exact' (no silent whitespace trimming)
   headers?: Record<string, string>;
   method?: 'GET' | 'POST' | 'PUT';
   bodyTemplate?: string; // e.g. '{"input":"{PAYLOAD}"}'
