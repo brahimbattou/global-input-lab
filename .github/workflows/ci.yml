@@ -38,8 +38,8 @@ jobs:
     - name: Run test suite
       run: npm test
 
-    - name: Run test suite with coverage (Ubuntu Node 20)
-      if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
+    - name: Run test suite with coverage (Ubuntu Node 22)
+      if: matrix.os == 'ubuntu-latest' && matrix.node-version == '22.x'
       run: npm run test:coverage
 
     - name: Validate package dry run
