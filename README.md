@@ -223,6 +223,17 @@ npm run typecheck
 
 ---
 
+## Open Source Programs & Governance
+
+GlobalInputLab maintains complete governance, architecture, and program documentation:
+- [System Architecture](docs/architecture.md)
+- [OpenAI Codex for Open Source Application Dossier](docs/openai-application/APPLICATION_DRAFT.md)
+- [Project Ecosystem Impact & Architecture](docs/openai-application/PROJECT_IMPACT.md)
+- [Maintenance Evidence & Standards](docs/openai-application/MAINTENANCE_EVIDENCE.md)
+- [Standards & Source References](docs/openai-application/SOURCE_REFERENCES.md)
+
+---
+
 ## Contributing
 
 Contributions from the international developer community are warmly welcomed. Please review [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) for contribution guidelines, development setup instructions, and guidance on submitting new locale test vectors.
@@ -233,3 +244,4 @@ Contributions from the international developer community are warmly welcomed. Pl
 
 GlobalInputLab is licensed under the [MIT License](LICENSE).  
 Copyright (c) 2026 Brahim Battou.
+

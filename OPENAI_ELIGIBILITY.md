@@ -65,3 +65,16 @@ If and when the project achieves public adoption, the following truthful respons
 
 ### How Would OpenAI Sponsorship Support the Project?
 > API access would be used to build automated benchmark suites that test how frontier models and tokenizers handle multi-script confusables, zero-width steganography, and normalization drift, with findings published as open-source datasets for developer education.
+
+---
+
+## 5. Comprehensive Application Dossier
+
+A complete, field-by-field application dossier adhering to exact character limits and governance plans is maintained in [`docs/openai-application/`](docs/openai-application/):
+- [Application Form Draft (Field-by-Field)](docs/openai-application/APPLICATION_DRAFT.md)
+- [API Credits Allocation Plan](docs/openai-application/API_CREDITS_PLAN.md)
+- [Maintenance Evidence & Governance](docs/openai-application/MAINTENANCE_EVIDENCE.md)
+- [Project Impact & Architecture](docs/openai-application/PROJECT_IMPACT.md)
+- [Adoption Metrics & Strategy](docs/openai-application/ADOPTION_METRICS.md)
+- [Standards & Source References](docs/openai-application/SOURCE_REFERENCES.md)
+
