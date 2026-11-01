@@ -101,7 +101,7 @@ npm notice total files: 51
 - **TypeScript Types:** Bundled declaration files (`dist/index.d.ts`, `dist/types.d.ts`, etc.)
 - **Binary Executable:** `"bin": { "global-input-lab": "dist/cli/index.js", "gil": "dist/cli/index.js" }`
 - **Files Allowlist:** `"files": [ "dist", "README.md", "LICENSE" ]`
-- **Engines:** `"node": ">=18.0.0"`
+- **Engines:** `"node": ">=22.0.0"`
 
 ### 3.2 Dependency Hygiene
 - **Runtime Dependencies:** `0` (Zero third-party runtime dependencies)

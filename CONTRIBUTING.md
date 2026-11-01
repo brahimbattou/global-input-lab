@@ -30,7 +30,7 @@ GlobalInputLab has **zero production dependencies** and uses standard Node.js an
 
 ### Prerequisites
 
-- **Node.js**: `>= 18.0.0` (LTS recommended: 20.x or 22.x)
+- **Node.js**: `>= 22.0.0` (Active LTS: 22.x, 24.x, or 26.x)
 - **npm**: `>= 9.0.0`
 - **Git**
 

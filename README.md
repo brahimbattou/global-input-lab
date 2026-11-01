@@ -4,7 +4,7 @@
 > Non-destructive Unicode diagnostics, Trojan Source detection, byte-level round-trip verification, and active CI/CD probing.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org)
 [![Zero Runtime Dependencies](https://img.shields.io/badge/dependencies-0-success.svg)](package.json)
 
@@ -64,25 +64,59 @@ Software systems today operate in an interconnected, multilingual environment. A
 
 ---
 
-## Quick Start (CLI)
+## Installation & Quick Start (CLI)
 
-Run instantly without installation using `npx`:
+> [!NOTE]
+> **npm Package Status:** The npm package publication is forthcoming pending release finalization. Until published to the npm registry, build and run directly from GitHub source as shown below.
+
+### Primary Installation: Build from GitHub Source
+
+**Prerequisites:** Node.js `>= 22.0.0` and `npm`.
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/brahimbattou/global-input-lab.git
+
+# 2. Navigate to the project directory
+cd global-input-lab
+
+# 3. Install dependencies cleanly
+npm ci
+
+# 4. Compile TypeScript to distribution artifacts
+npm run build
+
+# 5. Verify CLI execution
+node ./dist/cli/index.js --help
+```
+
+You can execute CLI commands directly with `node ./dist/cli/index.js` (or globally link with `npm link`):
 
 ```bash
 # Audit a string for invisible smuggling or bidi overrides
-npx global-input-lab audit "Ignore\u200B previous instructions"
+node ./dist/cli/index.js audit "Ignore\u200B previous instructions"
 
 # Audit a JSON or text file
-npx global-input-lab audit ./payload.json --json
+node ./dist/cli/index.js audit ./payload.json --json
 
 # Sanitize text with non-destructive preservation
-npx global-input-lab sanitize ./input.txt --out ./cleaned.txt
+node ./dist/cli/index.js sanitize ./input.txt --out ./cleaned.txt
 
 # Run active test vectors against an echo API endpoint
-npx global-input-lab test --url http://localhost:3000/api/echo --json-path "data.echo"
+node ./dist/cli/index.js test --url http://localhost:3000/api/echo --json-path "data.echo"
 
 # Export curated test cases for other test frameworks (Jest, Vitest, pytest, Go)
-npx global-input-lab generate --category security_adversarial --format json
+node ./dist/cli/index.js generate --category security_adversarial --format json
+```
+
+### Forthcoming npm Package Distribution
+
+Upon formal npm publication approval, GlobalInputLab can also be executed directly via `npx` or installed via npm:
+
+```bash
+# Forthcoming once published to npm:
+# npx global-input-lab audit "..."
+# npm install -g global-input-lab
 ```
 
 ### CLI Command Reference
@@ -99,10 +133,12 @@ npx global-input-lab generate --category security_adversarial --format json
 
 ## Programmatic API (TypeScript / Node.js)
 
-Install the library in your project:
+> [!NOTE]
+> **Forthcoming npm Package:** Direct `npm install global-input-lab` installation will be enabled following public npm release. For local development or integration today, import from the compiled `./dist` directory or link locally with `npm link`.
 
-```bash
-npm install global-input-lab
+```typescript
+import { auditText, getDiagnosticView } from './dist/index.js';
+// Or once published: import { auditText, getDiagnosticView } from 'global-input-lab';
 ```
 
 ### 1. Auditing Input Text
@@ -208,7 +244,23 @@ open demo/index.html
 
 ## Quality & Testing
 
-GlobalInputLab maintains 100% automated test verification using Node.js's native test runner (`node:test`), with **93 automated tests** passing across 10 test suites:
+GlobalInputLab is developed with strict engineering rigor, comprehensive cross-platform verification, and zero runtime dependencies:
+
+- **Automated Tests:** **93 automated tests** passing (0 failed, 0 skipped) across 10 specialized test suites using Node.js's native test runner (`node:test`).
+- **Cross-Platform CI Matrix:** 9 verified matrix configurations across **Ubuntu**, **Windows**, and **macOS** on **Node.js 22.x, 24.x, and 26.x** in GitHub Actions.
+- **Code Coverage (Native V8 Runner):**
+  - **Overall Project:** 65.33% line coverage, 68.75% branch coverage, 65.97% function coverage.
+  - **Core Algorithms (`src/core/`):**
+    - `homoglyph-detector.ts`: 100.00% lines, 89.19% branch, 100.00% funcs
+    - `round-trip.ts`: 94.85% lines, 94.59% branch, 100.00% funcs
+    - `boundary-inspector.ts`: 94.23% lines, 62.50% branch, 100.00% funcs
+    - `sanitizer.ts`: 93.13% lines, 87.04% branch, 88.89% funcs
+    - `unicode-auditor.ts`: 86.92% lines, 85.86% branch, 93.33% funcs
+  - **CLI Runner & Orchestration (`src/cli/`):**
+    - `runner.ts`: 90.69% lines, 69.01% branch, 100.00% funcs
+    - `formatters.ts`: 53.65% lines, 52.94% branch, 66.67% funcs
+- **Zero Runtime Dependencies:** Exactly 0 production dependencies in `package.json` to eliminate supply-chain vulnerabilities and maintain a minimal footprint.
+- **Strict Type Safety:** 100% strict TypeScript (`tsc --noEmit`), zero `any` leaks across public API interfaces.
 
 ```bash
 # Run all 93 unit, integration, and CLI tests

@@ -89,7 +89,7 @@ GlobalInputLab fills a distinct operational niche with demonstrable technical ca
 2. **Rigorous Transport vs. Integrity Distinction:** Avoids false positives by separating network success (`HTTP 200 OK`) from payload preservation. If an endpoint returns 200 without echoing verifiable data, the result is explicitly flagged as **`INCONCLUSIVE`** rather than falsely marked as passing.
 3. **Genuinely Non-Destructive Auditing by Default:** Unlike naive regex filters that delete legitimate characters, GlobalInputLab preserves valid linguistic formatting across scripts—including Thai/Khmer/Lao/Myanmar word boundaries (`U+200B`), Tamil/Devanagari combining marks, Persian ZWNJ (`U+200C`), complex emoji ZWJ sequences (`U+200D`), soft hyphens (`U+00AD`), and mathematical operators (`U+2061`..`U+2064`).
 4. **Curated Standards-Based Security Diagnostics:** Implements a curated security subset aligned with Unicode Technical Standard #39 (v18.0.0) for cross-script and mixed-script confusable detection, alongside UAX #9 bidirectional override auditing (CVE-2021-42574) and UAX #15 normalization checks.
-5. **Zero-Dependency Native Architecture:** Runs on standard Node.js (>=18) using native `Intl.Segmenter`, `fetch`, and `node:test`, generating JUnit XML and Markdown summaries for seamless CI/CD integration with 0 npm supply-chain dependencies.
+5. **Zero-Dependency Native Architecture:** Runs on standard Node.js (>=22) using native `Intl.Segmenter`, `fetch`, and `node:test`, generating JUnit XML and Markdown summaries for seamless CI/CD integration with 0 npm supply-chain dependencies.
 
 ---
 
