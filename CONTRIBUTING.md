@@ -88,16 +88,48 @@ When submitting new test vectors to `src/core/test-suites.ts`:
 
 ## Pull Request Guidelines
 
-1. **Branch Naming:** Use clear branch names like `feat/add-devanagari-vectors`, `fix/boundary-inspector-surrogate`, or `docs/update-readme`.
-2. **Commit Messages:** Follow [Conventional Commits](https://www.conventionalcommits.org/):
+1. **Branch Naming:** Use clear branch names like `feat/add-devanagari-vectors`, `fix/boundary-inspector-surrogate`, or `docs/update-readme`. Direct pushes to `main` are blocked by the `Protect Main Branch` ruleset; all changes must be proposed via a Pull Request from a working branch or fork.
+2. **Commit Messages & Linear History:** Follow [Conventional Commits](https://www.conventionalcommits.org/):
    - `feat: ...` for new features
    - `fix: ...` for bug fixes
    - `test: ...` for adding or updating tests
    - `docs: ...` for documentation changes
    - `refactor: ...` for code reorganization
+   The `main` branch enforces a **linear commit history** (`required_linear_history`). Pull Requests are integrated via **Squash and merge** or **Rebase and merge**.
 3. **Tests Required:** Every code change or new vector MUST include accompanying automated tests in `tests/`.
-4. **CI Passing:** All automated checks in GitHub Actions must pass before a PR can be merged.
+4. **CI Passing & Conversation Resolution:** All 9 automated GitHub Actions CI matrix checks must pass and all review threads must be resolved (`required_review_thread_resolution: true`) before a PR can be merged.
 5. **No Breaking Changes Without Discussion:** Open an issue first before introducing changes to public API signatures.
+
+---
+
+## Repository Protection, Required CI Checks & Governance
+
+GlobalInputLab enforces active GitHub Rulesets on [`brahimbattou/global-input-lab`](https://github.com/brahimbattou/global-input-lab/rules) with zero bypass exemptions (`bypass_actors: []`):
+
+### 1. Main Branch Protection (`Protect Main Branch`)
+- **Target:** Default branch (`main`).
+- **Branch Safety:** Branch deletion (`deletion`) and force-pushes (`non_fast_forward`) are strictly blocked.
+- **Pull Request Workflow:** Every change to `main` (whether authored by the primary maintainer, an external contributor, or Dependabot) must enter through a Pull Request. Because GlobalInputLab has a single primary maintainer, `required_approving_review_count` is configured as `0` so the maintainer can merge verified self-authored PRs once all 9 required CI jobs succeed and review conversations are resolved.
+- **Required Status Checks (GitHub Actions `integration_id: 15368`):** All 9 matrix jobs from `.github/workflows/ci.yml` must complete with `success`:
+  - `Node 22.x on ubuntu-latest`
+  - `Node 22.x on windows-latest`
+  - `Node 22.x on macos-latest`
+  - `Node 24.x on ubuntu-latest`
+  - `Node 24.x on windows-latest`
+  - `Node 24.x on macos-latest`
+  - `Node 26.x on ubuntu-latest`
+  - `Node 26.x on windows-latest`
+  - `Node 26.x on macos-latest`
+
+### 2. Dependency Update Review Process
+- Weekly Dependabot version updates (`.github/dependabot.yml`) for `npm` and `github-actions` open Pull Requests targeting `main`.
+- Auto-merge is disabled. Every Dependabot PR must pass the full 9-job CI matrix and undergo manual maintainer review of changelog, type compatibility, and lockfile diffs before merging.
+
+### 3. Release Tag Protection (`Protect Release Tags`)
+- Published version tags matching `refs/tags/v*` (e.g., `v0.1.0`) are governed by an active tag ruleset that blocks tag deletion (`deletion`) and force-overwrites (`non_fast_forward`) while permitting normal creation of new version tags.
+
+### 4. Emergency Recovery Procedure
+- No standing administrator bypass is enabled so that day-to-day maintenance never bypasses PR or CI checks. If an emergency recovery is required, the repository administrator can temporarily toggle the ruleset enforcement status in **Settings → Rules → Rulesets** as documented in [SECURITY.md](SECURITY.md).
 
 ---
 

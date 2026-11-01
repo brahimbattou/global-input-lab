@@ -65,6 +65,23 @@ The canonical GitHub repository ([`brahimbattou/global-input-lab`](https://githu
 - **Dependabot Version Updates (`.github/dependabot.yml`):** Configured on a weekly schedule for both `npm` and `github-actions` ecosystems with grouped minor/patch updates. Auto-merge is disabled; all dependency updates require full 9-job CI matrix verification and manual maintainer review before merging.
 - **GitHub CodeQL Analysis (Default Setup):** Configured for `javascript-typescript` and `actions` using the default query suite across `main`, pull requests, and weekly scheduled scans.
 - **Secret Scanning & Push Protection:** Enabled to prevent accidental credential commits.
+- **Main Branch Protection Ruleset (`Protect Main Branch`):** Active GitHub branch ruleset targeting `main` (`~DEFAULT_BRANCH`) with zero bypass exemptions (`bypass_actors: []`). Enforces:
+  - **Deletion Restriction (`deletion`):** Blocks accidental or unauthorized deletion of `main`.
+  - **Force-Push Blocking (`non_fast_forward`):** Prevents rewriting or destroying published commit history.
+  - **Linear Commit History (`required_linear_history`):** Requires squash or rebase merges to keep commit provenance clean and auditable.
+  - **Pull Request Gate (`pull_request`):** All changes to `main` must enter via a Pull Request with conversation resolution required (`required_review_thread_resolution: true`). Configured with `required_approving_review_count: 0` so the single primary maintainer can author and merge verified PRs after CI passes without deadlocking maintenance.
+  - **Required Status Checks (`required_status_checks`):** Requires all 9 cross-platform CI matrix jobs (`Node 22.x`, `Node 24.x`, and `Node 26.x` across `ubuntu-latest`, `windows-latest`, and `macos-latest`), strictly bound to the official GitHub Actions integration (`integration_id: 15368`), to pass before merging.
+- **Release Tag Protection Ruleset (`Protect Release Tags`):** Active GitHub tag ruleset targeting `refs/tags/v*` that prevents deletion (`deletion`) and force-overwriting (`non_fast_forward`) of published version tags while allowing normal creation of future release tags.
+
+### Emergency Recovery Procedure (Repository Administrator)
+
+No standing administrator bypass is configured on `Protect Main Branch` so that all routine maintainer and Dependabot changes are uniformly validated through Pull Requests and the 9-job CI matrix. If an extraordinary infrastructure outage or critical security incident requires temporary ruleset modification:
+
+1. Authenticate as the repository owner (`@brahimbattou`) and navigate to **Settings → Rules → Rulesets** on [`brahimbattou/global-input-lab`](https://github.com/brahimbattou/global-input-lab/rules).
+2. Select the **Protect Main Branch** (or **Protect Release Tags**) ruleset.
+3. Temporarily change **Enforcement status** from **Active** to **Disabled** (or **Evaluate**) and click **Save changes**.
+4. Execute the minimum necessary recovery operation and verify repository integrity (`git log`, `npm test`, and CI workflow status).
+5. Immediately restore **Enforcement status** to **Active** and save changes. All ruleset state transitions are recorded in the repository's GitHub audit log.
 
 ---
 

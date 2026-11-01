@@ -287,7 +287,8 @@ npm run typecheck
 
 ## Open Source Programs & Governance
 
-GlobalInputLab maintains complete governance, architecture, and program documentation:
+GlobalInputLab maintains complete governance, branch/release protection, and program documentation:
+- **Branch & Release Protection Rulesets:** Active GitHub Rulesets ([`Protect Main Branch` and `Protect Release Tags`](https://github.com/brahimbattou/global-input-lab/rules)) enforce Pull-Request-only merges to `main`, linear commit history, conversation resolution, all 9 cross-platform CI matrix status checks (`Node 22.x/24.x/26.x` on Ubuntu, Windows, and macOS), manual review of Dependabot updates, and immutable `v*` release tags (no deletion or force-pushing). See [`SECURITY.md`](SECURITY.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md) for full workflow and emergency recovery documentation.
 - [System Architecture](docs/architecture.md)
 - [OpenAI Codex for Open Source Application Dossier](docs/openai-application/APPLICATION_DRAFT.md)
 - [Project Ecosystem Impact & Architecture](docs/openai-application/PROJECT_IMPACT.md)
