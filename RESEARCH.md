@@ -109,7 +109,7 @@ To maintain scientific honesty, the following constraints of the current impleme
 The following assumptions remain subject to ongoing validation through community adoption:
 - *Developer Adoption Model:* It is assumed that development teams prefer a dedicated CLI/CI tool over writing ad-hoc test scripts with static lists like BLNS.
 - *Downstream API Compatibility:* The `--json-path` parameter assumes APIs return structured JSON echoing input strings; APIs that hash, encrypt, or tokenize inputs immediately cannot be tested for byte preservation without a reversible extraction mechanism.
-- *Platform Consistency:* While verified on Node.js 18, 20, and 22 across Windows, Linux, and macOS in CI, behavior on non-standard JavaScript runtimes (e.g., QuickJS, Hermes) has not been verified.
+- *Platform Consistency:* While verified on Node.js 22, 24, and 26 across Windows, Linux, and macOS in CI, behavior on non-standard JavaScript runtimes (e.g., QuickJS, Hermes) has not been verified.
 
 ---
 

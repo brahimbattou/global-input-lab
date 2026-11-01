@@ -148,4 +148,4 @@
    - `runner.ts`: 90.69% lines, 69.23% branch, 100.00% funcs
    - `sanitizer.ts`: 93.13% lines, 87.04% branch, 88.89% funcs
    - `unicode-auditor.ts`: 86.92% lines, 85.86% branch, 93.33% funcs
-5. **Cross-Platform Matrix:** `.github/workflows/ci.yml` defines active automated verification across `ubuntu-latest`, `windows-latest`, and `macos-latest` on Node.js 18, 20, and 22.
+5. **Cross-Platform Matrix:** `.github/workflows/ci.yml` defines active automated verification across `ubuntu-latest`, `windows-latest`, and `macos-latest` on Node.js 22, 24, and 26.

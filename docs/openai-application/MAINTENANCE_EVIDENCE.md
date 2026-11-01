@@ -24,7 +24,7 @@ The repository enforces uncompromising technical standards:
 | Control | Implementation Details | Status |
 | :--- | :--- | :---: |
 | **Automated Tests** | 93 passing assertions across 10 specialized test suites (`tests/unit/**/*.test.ts`). Zero skipped, zero flaky tests. | :white_check_mark: **Verified** |
-| **Cross-Platform CI** | GitHub Actions matrix testing on **Ubuntu**, **Windows**, and **macOS** across Node.js **18.x**, **20.x**, and **22.x**. | :white_check_mark: **Active** |
+| **Cross-Platform CI** | GitHub Actions matrix testing on **Ubuntu**, **Windows**, and **macOS** across Node.js **22.x**, **24.x**, and **26.x**. | :white_check_mark: **Active** |
 | **Code Coverage** | Comprehensive line and branch coverage report executed via native Node.js test runner (`--experimental-test-coverage`). | :white_check_mark: **Verified** |
 | **Type Safety** | 100% strict TypeScript compilation (`tsc --noEmit`), zero `any` leakage in public API surfaces. | :white_check_mark: **Verified** |
 | **Packaging Safety** | `npm pack --dry-run` verified: only `dist/`, `README.md`, and `LICENSE` are distributed. Zero test files, git internals, or sensitive files included. | :white_check_mark: **Verified** |

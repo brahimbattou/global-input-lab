@@ -53,7 +53,7 @@ We will use API credits to automate three essential open-source workflows: (1) A
 ### Field: Additional relevant information (Limit: 500 characters)
 
 ```text
-GlobalInputLab is maintained with strict engineering discipline: automated cross-platform CI matrix across Ubuntu, Windows, and macOS on Node 18, 20, and 22; full TypeScript type safety; comprehensive coverage; and zero supply-chain bloat. Codex support will enable rapid expansion of our test datasets across underrepresented scripts, harden raw stream parsing, and assist in maintaining coordinated security disclosures for prompt injection and Trojan Source bidirectional vulnerabilities.
+GlobalInputLab is maintained with strict engineering discipline: automated cross-platform CI matrix across Ubuntu, Windows, and macOS on Node 22, 24, and 26; full TypeScript type safety; comprehensive coverage; and zero supply-chain bloat. Codex support will enable rapid expansion of our test datasets across underrepresented scripts, harden raw stream parsing, and assist in maintaining coordinated security disclosures for prompt injection and Trojan Source bidirectional vulnerabilities.
 ```
 - **Length:** 473 characters (within 500-character ceiling).
 

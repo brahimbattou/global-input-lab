@@ -30,7 +30,7 @@ The OpenAI Codex for Open Source program is designed to empower open-source main
 | **Open Source License** | MIT License (`LICENSE`) | :white_check_mark: **Compliant** | Permissive, standard OSI-approved license recognized worldwide. |
 | **Public Visibility** | Public repository under `github.com/brahimbattou/global-input-lab` | :white_check_mark: **Compliant** | Public source code, release tags, and automated GitHub Actions CI. |
 | **Primary Maintainer** | Brahim Battou is the creator, author, and primary maintainer. | :white_check_mark: **Verified** | Git commit authorship and repository ownership directly attributable to maintainer account. |
-| **Code Maturity & Tests** | 93 passing automated tests across 10 test suites; zero runtime dependencies; 100% TypeScript type safety. | :white_check_mark: **Verified** | Cross-platform CI running across Ubuntu, Windows, and macOS (Node 18, 20, 22). |
+| **Code Maturity & Tests** | 93 passing automated tests across 10 test suites; zero runtime dependencies; 100% TypeScript type safety. | :white_check_mark: **Verified** | Cross-platform CI running across Ubuntu, Windows, and macOS (Node 22, 24, 26). |
 | **Scope Relevance** | International text integrity, Unicode security signals, multi-byte boundary protection, and UTF-8 verification. | :white_check_mark: **High Relevance** | Directly targets data ingestion, tokenization integrity, and security vulnerabilities relevant to modern software and AI pipelines. |
 | **Community Adoption** | Public Day 0 launch stage; real-world developer adoption actively in progress. | :hourglass_flowing_sand: **Emerging** | Public launch underway. Adoption metrics are tracked transparently without synthetic inflation. |
 
