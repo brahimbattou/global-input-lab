@@ -25,16 +25,22 @@ Please **do not disclose it publicly** via GitHub Issues.
 
 ### Reporting Process
 
-1. **Email the Maintainer:** Submit a detailed report to `security@battou.dev` with the subject line `[SECURITY] GlobalInputLab Vulnerability Report`.
-2. **Include Reproduction Steps:**
-   - Detailed description of the vulnerability.
-   - Minimal reproduction code or test payload.
-   - Expected behavior vs. actual observed behavior.
-   - Impact assessment (e.g., DoS, filter bypass, data corruption).
-3. **Response Timeline:**
-   - **Acknowledgment:** Within 48 hours.
-   - **Initial Assessment:** Within 5 business days.
-   - **Fix & Advisory:** Coordinated disclosure typically within 30 days of initial report.
+GlobalInputLab utilizes GitHub's **Private Vulnerability Reporting** feature to allow security researchers and developers to privately and securely report vulnerabilities directly to the maintainer.
+
+To submit a private vulnerability report:
+
+1. Navigate to the repository on GitHub: [brahimbattou/global-input-lab](https://github.com/brahimbattou/global-input-lab).
+2. Click the **Security** tab under the repository navigation bar.
+3. In the left-hand menu under "Security", select **Advisories**.
+4. Click the green **Report a vulnerability** button to open a confidential advisory draft.
+5. Provide detailed information to assist in reproducing and resolving the issue:
+   - A clear description of the vulnerability.
+   - Minimal reproduction code, command invocation, or offending test payload.
+   - Expected behavior versus actual observed behavior.
+   - Impact assessment (e.g., Denial of Service, filter bypass, silent data corruption, or unsafe execution).
+6. Submit the report.
+
+This opens a private advisory workspace where maintainers and the reporter can securely communicate, assess the issue, and collaborate on a remediation before any public disclosure. Once a fix is verified, a coordinated release and security advisory will be published.
 
 ---
 

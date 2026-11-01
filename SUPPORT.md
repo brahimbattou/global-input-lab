@@ -36,4 +36,4 @@ If you found a bug or have a feature suggestion:
 
 ## 4. Security Vulnerabilities
 
-To report security issues, please follow our [Security Policy](SECURITY.md) and email `security@battou.dev`. Do not open public issues for security vulnerabilities.
+To report security issues, please follow our [Security Policy](SECURITY.md) to submit a confidential report via GitHub's Private Vulnerability Reporting. Do not open public issues for security vulnerabilities.

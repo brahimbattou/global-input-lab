@@ -43,7 +43,7 @@ GlobalInputLab maintains complete governance and community infrastructure:
 2. **Pull Request Template (`.github/PULL_REQUEST_TEMPLATE.md`):**
    - Checklist enforcing test coverage, typecheck execution, non-destructive defaults preservation, and documentation updates.
 3. **Security Policy (`SECURITY.md`):**
-   - Transparent Coordinated Vulnerability Disclosure (CVD) process with defined response timelines (acknowledgment within 48 hours).
+   - Transparent Coordinated Vulnerability Disclosure (CVD) process utilizing GitHub's confidential Private Vulnerability Reporting.
 4. **Contributor Guidelines (`CONTRIBUTING.md`):**
    - Architectural principles, development workflow instructions, and coding standards for community contributors.
 5. **Community Standard (`CODE_OF_CONDUCT.md`):**
