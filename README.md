@@ -134,17 +134,18 @@ Upon formal npm publication approval, GlobalInputLab can also be executed direct
 ## Programmatic API (TypeScript / Node.js)
 
 > [!NOTE]
-> **Forthcoming npm Package:** Direct `npm install global-input-lab` installation will be enabled following public npm release. For local development or integration today, import from the compiled `./dist` directory or link locally with `npm link`.
-
-```typescript
-import { auditText, getDiagnosticView } from './dist/index.js';
-// Or once published: import { auditText, getDiagnosticView } from 'global-input-lab';
-```
+> **Import Path Modes (npm Publication Forthcoming):** The package is not yet published to the public npm registry. Depending on your environment, use the appropriate import path:
+> - **Local Compiled `dist` Import (After `npm run build`):** `import { ... } from './dist/index.js';`
+> - **Local GitHub Source Usage (With `tsx` / TypeScript):** `import { ... } from './src/index.js';`
+> - **Future npm Package Import (Forthcoming):** `// import { ... } from 'global-input-lab';`
 
 ### 1. Auditing Input Text
 
 ```typescript
-import { auditText, getDiagnosticView } from 'global-input-lab';
+// Local compiled dist import (after `npm run build`):
+import { auditText, getDiagnosticView } from './dist/index.js';
+// Local GitHub source usage (with tsx): import { auditText, getDiagnosticView } from './src/index.js';
+// Future npm package import (forthcoming): import { auditText, getDiagnosticView } from 'global-input-lab';
 
 const report = auditText('Ignore\u200B previous\u200C instructions');
 
@@ -162,7 +163,10 @@ for (const anomaly of report.anomalies) {
 ### 2. Genuinely Non-Destructive Sanitization (Opt-In Policies)
 
 ```typescript
-import { sanitizeText } from 'global-input-lab';
+// Local compiled dist import (after `npm run build`):
+import { sanitizeText } from './dist/index.js';
+// Local GitHub source usage (with tsx): import { sanitizeText } from './src/index.js';
+// Future npm package import (forthcoming): import { sanitizeText } from 'global-input-lab';
 
 // 1. By default, sanitizeText is 100% non-destructive and preserves all valid formatting:
 const thai = 'ภาษาไทย\u200Bภาษาไทย'; // Thai with ZWSP word boundary
@@ -184,7 +188,10 @@ console.log(clean.sanitized); // "SafeText"
 ### 3. Safe UTF-8 Byte Truncation
 
 ```typescript
-import { inspectByteTruncation } from 'global-input-lab';
+// Local compiled dist import (after `npm run build`):
+import { inspectByteTruncation } from './dist/index.js';
+// Local GitHub source usage (with tsx): import { inspectByteTruncation } from './src/index.js';
+// Future npm package import (forthcoming): import { inspectByteTruncation } from 'global-input-lab';
 
 // Truncating 'Hello中World' to 6 bytes:
 // 'Hello' is 5 bytes, '中' is 3 bytes (0xE4 0xB8 0xAD).
@@ -199,7 +206,10 @@ console.log(analysis.safeBytes);    // 5 bytes
 ### 4. Round-Trip Verification
 
 ```typescript
-import { verifyRoundTrip } from 'global-input-lab';
+// Local compiled dist import (after `npm run build`):
+import { verifyRoundTrip } from './dist/index.js';
+// Local GitHub source usage (with tsx): import { verifyRoundTrip } from './src/index.js';
+// Future npm package import (forthcoming): import { verifyRoundTrip } from 'global-input-lab';
 
 const original = 'José-María';
 const fromDatabase = 'Jose-Maria'; // Database stripped accents

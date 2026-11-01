@@ -619,10 +619,16 @@
         if (BIDI_CHARS.has(cp)) displayChar = 'BIDI';
         if (cp === 0x20) displayChar = 'SP';
 
-        pill.innerHTML = `
-          <div class="codepoint-char">${displayChar}</div>
-          <div class="codepoint-hex">${hex}</div>
-        `;
+        const charDiv = document.createElement('div');
+        charDiv.className = 'codepoint-char';
+        charDiv.textContent = displayChar;
+
+        const hexDiv = document.createElement('div');
+        hexDiv.className = 'codepoint-hex';
+        hexDiv.textContent = hex;
+
+        pill.appendChild(charDiv);
+        pill.appendChild(hexDiv);
         strip.appendChild(pill);
       });
 

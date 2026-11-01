@@ -162,14 +162,10 @@ test('probeCommand - preserves Arabic, Chinese, Emoji, and mixed text split acro
   assert.equal(cjkRes.extractedPayload, '世界');
   assert.ok(!cjkRes.extractedPayload?.includes('\uFFFD'));
 
-  // 3. Arabic مرحبا split across chunks
+  // 3. Arabic مرحبا (0xD9 0x85 0xD8 0xB1 0xD8 | 0xAD 0xD8 0xA8 0xD8 0xA7) split mid-character across chunks
   const arabicStr = 'مرحبا';
   const arabicTc: TestCase = { ...SAMPLE_TC, id: 'arabic-split', payload: arabicStr };
-  const arabicBuf = Buffer.from(arabicStr, 'utf8');
-  const half = Math.floor(arabicBuf.length / 2);
-  const b1 = Array.from(arabicBuf.subarray(0, half));
-  const b2 = Array.from(arabicBuf.subarray(half));
-  const arabicCmd = `node -e "process.stdout.write(Buffer.from(${JSON.stringify(b1)})); setTimeout(() => { process.stdout.write(Buffer.from(${JSON.stringify(b2)})); }, 20);"`;
+  const arabicCmd = `node -e "process.stdout.write(Buffer.from('d985d8b1d8', 'hex')); setTimeout(() => { process.stdout.write(Buffer.from('add8a8d8a7', 'hex')); }, 20);"`;
   const arabicRes = await runner.probeCommand(arabicTc, arabicCmd, { outputFraming: 'exact' });
   assert.equal(arabicRes.outcome, 'passed');
   assert.equal(arabicRes.extractedPayload, arabicStr);
@@ -178,12 +174,8 @@ test('probeCommand - preserves Arabic, Chinese, Emoji, and mixed text split acro
   // 4. Mixed multilingual string: "Hello € 世界 مرحبا 😀!" split across multiple writes
   const mixedStr = 'Hello € 世界 مرحبا 😀!';
   const mixedTc: TestCase = { ...SAMPLE_TC, id: 'mixed-split', payload: mixedStr };
-  const mixedBuf = Buffer.from(mixedStr, 'utf8');
-  // Split into 3-byte chunks to stress test boundary reconstruction
-  const chunk1 = Array.from(mixedBuf.subarray(0, 7));
-  const chunk2 = Array.from(mixedBuf.subarray(7, 16));
-  const chunk3 = Array.from(mixedBuf.subarray(16));
-  const mixedCmd = `node -e "process.stdout.write(Buffer.from(${JSON.stringify(chunk1)})); setTimeout(() => { process.stdout.write(Buffer.from(${JSON.stringify(chunk2)})); setTimeout(() => { process.stdout.write(Buffer.from(${JSON.stringify(chunk3)})); }, 15); }, 15);"`;
+  // Split at byte 7 (mid-€) and byte 16 to stress test boundary reconstruction
+  const mixedCmd = `node -e "process.stdout.write(Buffer.from('48656c6c6f20e2', 'hex')); setTimeout(() => { process.stdout.write(Buffer.from('82ac20e4b896e7958c', 'hex')); setTimeout(() => { process.stdout.write(Buffer.from('20d985d8b1d8add8a8d8a720f09f988021', 'hex')); }, 15); }, 15);"`;
   const mixedRes = await runner.probeCommand(mixedTc, mixedCmd, { outputFraming: 'exact' });
   assert.equal(mixedRes.outcome, 'passed');
   assert.equal(mixedRes.extractedPayload, mixedStr);

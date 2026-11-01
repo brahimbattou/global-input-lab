@@ -165,7 +165,8 @@ export class ReportFormatter {
         ? (res.inconclusiveReason || 'Unverified')
         : (res.error || res.roundTrip?.diffDescription || 'Failure');
 
-      lines.push(`| ${icon} | \`${res.testCase.category}\` | ${res.testCase.name} | ${res.durationMs}ms | ${detail.replace(/\|/g, '\\|')} |`);
+      const safeDetail = detail.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
+      lines.push(`| ${icon} | \`${res.testCase.category}\` | ${res.testCase.name} | ${res.durationMs}ms | ${safeDetail} |`);
     }
 
     return lines.join('\n');

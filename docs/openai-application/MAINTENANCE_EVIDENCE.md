@@ -29,6 +29,9 @@ The repository enforces uncompromising technical standards:
 | **Type Safety** | 100% strict TypeScript compilation (`tsc --noEmit`), zero `any` leakage in public API surfaces. | :white_check_mark: **Verified** |
 | **Packaging Safety** | `npm pack --dry-run` verified: only `dist/`, `README.md`, and `LICENSE` are distributed. Zero test files, git internals, or sensitive files included. | :white_check_mark: **Verified** |
 | **Dependency Minimality** | Zero runtime dependencies. Reduces maintenance burden and eliminates supply-chain compromise vectors. | :white_check_mark: **Verified** |
+| **CodeQL Static Analysis** | GitHub CodeQL Default Setup active (`javascript-typescript` and `actions` query suites) on `main`, pull requests, and weekly schedules. | :white_check_mark: **Active** |
+| **Supply-Chain & Dependabot** | Dependency Graph (SBOM), Dependabot Alerts, Dependabot Security Updates, and weekly `.github/dependabot.yml` (`npm` and `github-actions`) with mandatory CI gating and manual review. | :white_check_mark: **Active** |
+| **Secret Protection** | GitHub Secret Scanning and Push Protection active on the public repository. | :white_check_mark: **Active** |
 
 ---
 
@@ -43,7 +46,8 @@ GlobalInputLab maintains complete governance and community infrastructure:
 2. **Pull Request Template (`.github/PULL_REQUEST_TEMPLATE.md`):**
    - Checklist enforcing test coverage, typecheck execution, non-destructive defaults preservation, and documentation updates.
 3. **Security Policy (`SECURITY.md`):**
-   - Transparent Coordinated Vulnerability Disclosure (CVD) process utilizing GitHub's confidential Private Vulnerability Reporting.
+   - Transparent Coordinated Vulnerability Disclosure (CVD) process utilizing GitHub's confidential Private Vulnerability Reporting (`enabled: true`).
+   - Documented maintainer notification verification checklist requiring repository Watch (`All Activity` or `Security alerts`) and verified email delivery in GitHub account notification settings.
 4. **Contributor Guidelines (`CONTRIBUTING.md`):**
    - Architectural principles, development workflow instructions, and coding standards for community contributors.
 5. **Community Standard (`CODE_OF_CONDUCT.md`):**
