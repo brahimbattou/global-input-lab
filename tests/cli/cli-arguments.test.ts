@@ -78,3 +78,156 @@ test('CLI Arguments - sanitize writes clean text to --out path', async () => {
     }
   }
 });
+
+test('CLI Arguments - audit supports --json flag', async () => {
+  const { stdout } = await execFileAsync(process.execPath, [
+    CLI_PATH,
+    'audit',
+    'Hello World',
+    '--json',
+  ]);
+  const parsed = JSON.parse(stdout);
+  assert.equal(parsed.input, 'Hello World');
+  assert.equal(parsed.graphemeCount, 11);
+  assert.equal(parsed.riskScore, 0);
+});
+
+test('CLI Arguments - sanitize supports --json flag and opt-in policies', async () => {
+  const { stdout } = await execFileAsync(process.execPath, [
+    CLI_PATH,
+    'sanitize',
+    'document_\u202Efdp.exe',
+    '--strip-bidi',
+    '--json',
+  ]);
+  const parsed = JSON.parse(stdout);
+  assert.equal(parsed.original, 'document_\u202Efdp.exe');
+  assert.equal(parsed.sanitized, 'document_fdp.exe');
+  assert.equal(parsed.changed, true);
+  assert.ok(parsed.operationsApplied.includes('strip_bidi_overrides'));
+});
+
+test('CLI Arguments - generate exports JSON, CSV, and TXT formats', async () => {
+  // 1. Default JSON format
+  const { stdout: jsonOut } = await execFileAsync(process.execPath, [
+    CLI_PATH,
+    'generate',
+    '--category',
+    'names',
+    '--format',
+    'json',
+  ]);
+  const cases = JSON.parse(jsonOut);
+  assert.ok(Array.isArray(cases));
+  assert.ok(cases.length > 0);
+
+  // 2. CSV format
+  const { stdout: csvOut } = await execFileAsync(process.execPath, [
+    CLI_PATH,
+    'generate',
+    '--category',
+    'names',
+    '--format',
+    'csv',
+  ]);
+  assert.ok(csvOut.startsWith('id,category,name,payload,riskLevel'));
+
+  // 3. TXT format
+  const { stdout: txtOut } = await execFileAsync(process.execPath, [
+    CLI_PATH,
+    'generate',
+    '--category',
+    'names',
+    '--format',
+    'txt',
+  ]);
+  assert.ok(txtOut.length > 0);
+  assert.ok(!txtOut.includes('{"id"'));
+});
+
+test('CLI Arguments - generate writes to --out file path', async () => {
+  const tmpOut = path.join(os.tmpdir(), `gil_export_${Date.now()}.json`);
+  try {
+    const { stdout } = await execFileAsync(process.execPath, [
+      CLI_PATH,
+      'generate',
+      '--category',
+      'emails',
+      '--out',
+      tmpOut,
+    ]);
+    assert.ok(stdout.includes('Exported'));
+    const content = fs.readFileSync(tmpOut, 'utf8');
+    const cases = JSON.parse(content);
+    assert.ok(Array.isArray(cases));
+    assert.ok(cases.length > 0);
+  } finally {
+    if (fs.existsSync(tmpOut)) {
+      fs.unlinkSync(tmpOut);
+    }
+  }
+});
+
+test('CLI Arguments - fuzz command produces payloads for specific fields', async () => {
+  // Terminal format
+  const { stdout: termOut } = await execFileAsync(process.execPath, [
+    CLI_PATH,
+    'fuzz',
+    '--field',
+    'identifier',
+    '--count',
+    '3',
+  ]);
+  assert.ok(termOut.includes("Generated"));
+  assert.ok(termOut.includes("payloads for field 'identifier'"));
+
+  // JSON format
+  const { stdout: jsonOut } = await execFileAsync(process.execPath, [
+    CLI_PATH,
+    'fuzz',
+    '--field',
+    'identifier',
+    '--count',
+    '3',
+    '--json',
+  ]);
+  const payloads = JSON.parse(jsonOut);
+  assert.ok(Array.isArray(payloads));
+  assert.equal(payloads.length, 3);
+});
+
+test('CLI Arguments - test command executes with --command and outputs JUnit and Markdown', async () => {
+  const tmpJunit = path.join(os.tmpdir(), `gil_junit_${Date.now()}.xml`);
+  const tmpMd = path.join(os.tmpdir(), `gil_md_${Date.now()}.md`);
+
+  try {
+    const { stdout } = await execFileAsync(process.execPath, [
+      CLI_PATH,
+      'test',
+      '--command',
+      "node -e \"process.stdout.write(process.argv[1])\"",
+      '--category',
+      'names',
+      '--framing',
+      'exact',
+      '--junit',
+      tmpJunit,
+      '--markdown',
+      tmpMd,
+    ]);
+
+    assert.ok(stdout.includes('GlobalInputLab Test Suite Execution'));
+    assert.ok(stdout.includes('passed'));
+    assert.ok(fs.existsSync(tmpJunit));
+    assert.ok(fs.existsSync(tmpMd));
+
+    const junitContent = fs.readFileSync(tmpJunit, 'utf8');
+    assert.ok(junitContent.includes('<?xml version="1.0"'));
+
+    const mdContent = fs.readFileSync(tmpMd, 'utf8');
+    assert.ok(mdContent.includes('# GlobalInputLab Data Integrity Report'));
+  } finally {
+    if (fs.existsSync(tmpJunit)) fs.unlinkSync(tmpJunit);
+    if (fs.existsSync(tmpMd)) fs.unlinkSync(tmpMd);
+  }
+});

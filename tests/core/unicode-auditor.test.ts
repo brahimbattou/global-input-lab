@@ -187,3 +187,49 @@ test('UnicodeAuditor - detects Zalgo combining diacritics overflow', () => {
   assert.equal(report.hasZalgo, true);
   assert.ok(report.anomalies.some((a) => a.type === 'zalgo'));
 });
+
+test('UnicodeAuditor - detects null byte as critical security vulnerability', () => {
+  const auditor = new UnicodeAuditor();
+  const nullPayload = 'path/to/file\u0000.png';
+  const report = auditor.audit(nullPayload);
+
+  assert.ok(report.anomalies.some((a) => a.type === 'control' && a.codePoint === 0x0000 && a.severity === 'critical'));
+  assert.ok(report.riskScore >= 35);
+  assert.ok(report.diagnosticView.includes('[U+0000:NUL]'));
+});
+
+test('UnicodeAuditor - detects U+FFFD replacement character indicating Mojibake', () => {
+  const auditor = new UnicodeAuditor();
+  const report = auditor.audit('Corrupted \uFFFD text');
+
+  assert.ok(report.anomalies.some((a) => a.type === 'byte_split_risk' && a.codePoint === 0xfffd));
+  assert.ok(report.diagnosticView.includes('[U+FFFD:REPL]'));
+});
+
+test('UnicodeAuditor - classifies directional marks LRM and RLM as linguistic info', () => {
+  const auditor = new UnicodeAuditor();
+  const report = auditor.audit('Arabic text \u200E and \u200F formatting');
+
+  const lrm = report.anomalies.find((a) => a.codePoint === 0x200e);
+  const rlm = report.anomalies.find((a) => a.codePoint === 0x200f);
+
+  assert.ok(lrm && lrm.severity === 'info' && lrm.isLinguisticContext === true);
+  assert.ok(rlm && rlm.severity === 'info' && rlm.isLinguisticContext === true);
+  assert.equal(report.riskScore, 0);
+});
+
+test('UnicodeAuditor - classifies Mongolian vowel separator and word joiners as linguistic info', () => {
+  const auditor = new UnicodeAuditor();
+  const report = auditor.audit('Mongolian \u180E and word\u2060joiner and math \u2061 plus \u2064');
+
+  const mvs = report.anomalies.find((a) => a.codePoint === 0x180e);
+  const wj = report.anomalies.find((a) => a.codePoint === 0x2060);
+  const fa = report.anomalies.find((a) => a.codePoint === 0x2061);
+  const ip = report.anomalies.find((a) => a.codePoint === 0x2064);
+
+  assert.ok(mvs && mvs.severity === 'info' && mvs.isLinguisticContext === true);
+  assert.ok(wj && wj.severity === 'info' && wj.isLinguisticContext === true);
+  assert.ok(fa && fa.severity === 'info' && fa.isLinguisticContext === true);
+  assert.ok(ip && ip.severity === 'info' && ip.isLinguisticContext === true);
+  assert.equal(report.riskScore, 0);
+});

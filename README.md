@@ -256,24 +256,25 @@ open demo/index.html
 
 GlobalInputLab is developed with strict engineering rigor, comprehensive cross-platform verification, and zero runtime dependencies:
 
-- **Automated Tests:** **93 automated tests** passing (0 failed, 0 skipped) across 10 specialized test suites using Node.js's native test runner (`node:test`).
+- **Automated Tests:** **130 automated tests** passing (0 failed, 0 skipped) across 13 specialized test suites using Node.js's native test runner (`node:test`).
 - **Cross-Platform CI Matrix:** 9 verified matrix configurations across **Ubuntu**, **Windows**, and **macOS** on **Node.js 22.x, 24.x, and 26.x** in GitHub Actions.
 - **Code Coverage (Native V8 Runner):**
-  - **Overall Project:** 65.33% line coverage, 68.75% branch coverage, 65.97% function coverage.
+  - **Overall Project:** 72.84% line coverage, 72.68% branch coverage, 77.01% function coverage.
   - **Core Algorithms (`src/core/`):**
+    - `boundary-inspector.ts`: 100.00% lines, 96.55% branch, 100.00% funcs
     - `homoglyph-detector.ts`: 100.00% lines, 89.19% branch, 100.00% funcs
-    - `round-trip.ts`: 94.85% lines, 94.59% branch, 100.00% funcs
-    - `boundary-inspector.ts`: 94.23% lines, 62.50% branch, 100.00% funcs
-    - `sanitizer.ts`: 93.13% lines, 87.04% branch, 88.89% funcs
-    - `unicode-auditor.ts`: 86.92% lines, 85.86% branch, 93.33% funcs
+    - `schema-fuzzer.ts`: 100.00% lines, 100.00% branch, 100.00% funcs
+    - `round-trip.ts`: 97.79% lines, 97.37% branch, 100.00% funcs
+    - `sanitizer.ts`: 94.85% lines, 94.64% branch, 88.89% funcs
+    - `unicode-auditor.ts`: 91.80% lines, 91.15% branch, 93.33% funcs
   - **CLI Runner & Orchestration (`src/cli/`):**
-    - `runner.ts`: 90.69% lines, 69.01% branch, 100.00% funcs
-    - `formatters.ts`: 53.65% lines, 52.94% branch, 66.67% funcs
-- **Zero Runtime Dependencies:** Exactly 0 production dependencies in `package.json` to eliminate supply-chain vulnerabilities and maintain a minimal footprint.
+    - `formatters.ts`: 95.85% lines, 82.61% branch, 100.00% funcs
+    - `runner.ts`: 90.69% lines, 69.23% branch, 100.00% funcs
+- **Zero Runtime Dependencies:** Exactly 0 production dependencies in `package.json`, significantly minimizing runtime supply-chain attack surfaces and maintaining a minimal footprint.
 - **Strict Type Safety:** 100% strict TypeScript (`tsc --noEmit`), zero `any` leaks across public API interfaces.
 
 ```bash
-# Run all 93 unit, integration, and CLI tests
+# Run all 130 unit, integration, and CLI tests
 npm test
 
 # Run tests with code coverage analysis
