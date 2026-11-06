@@ -11,7 +11,7 @@ const CLI_PATH = path.resolve('dist/cli/index.js');
 
 test('CLI Arguments - prints version on --version', async () => {
   const { stdout } = await execFileAsync(process.execPath, [CLI_PATH, '--version']);
-  assert.ok(stdout.includes('global-input-lab v0.1.0'));
+  assert.ok(stdout.includes('global-input-lab v0.2.0'));
 });
 
 test('CLI Arguments - prints help on --help', async () => {

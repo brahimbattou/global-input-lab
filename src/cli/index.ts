@@ -11,7 +11,7 @@ import { OutputFramingPolicy, TestCategory } from '../types.js';
 import { ReportFormatter } from './formatters.js';
 import { TestRunner } from './runner.js';
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 const VALID_CATEGORIES: TestCategory[] = [
   'names',
   'emails',

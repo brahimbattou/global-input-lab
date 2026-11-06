@@ -1,6 +1,6 @@
 {
   "name": "global-input-lab",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Modern International Input & Data Integrity Testing Toolkit for Robust Global Software.",
   "keywords": [
     "unicode",
@@ -29,6 +29,15 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "bin": {
     "global-input-lab": "./dist/cli/index.js",
     "gil": "./dist/cli/index.js"

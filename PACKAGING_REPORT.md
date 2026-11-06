@@ -2,7 +2,7 @@
 
 **Document Date:** November 6, 2026  
 **Package Name:** `global-input-lab`  
-**Version:** `0.1.0`  
+**Version:** `0.2.0`  
 **Target Registry:** npm (`https://registry.npmjs.org/`)  
 **Status:** **PASSED ALL PACKAGING GATES — RELEASE READY FOR OWNER APPROVAL**
 
@@ -26,10 +26,10 @@ Packaging integrity was audited and verified via `npm pack --dry-run` following 
 Execution of `npm pack --dry-run` yielded the following verified metadata:
 
 ```text
-npm notice package: global-input-lab@0.1.0
+npm notice package: global-input-lab@0.2.0
 npm notice Tarball Contents
 npm notice 1.1kB LICENSE
-npm notice 19.2kB README.md
+npm notice 19.6kB README.md
 npm notice 919B dist/cli/formatters.d.ts
 npm notice 485B dist/cli/formatters.d.ts.map
 npm notice 8.5kB dist/cli/formatters.js
@@ -78,13 +78,13 @@ npm notice 6.6kB dist/types.d.ts
 npm notice 4.7kB dist/types.d.ts.map
 npm notice 194B dist/types.js
 npm notice 114B dist/types.js.map
-npm notice 1.4kB package.json
+npm notice 1.6kB package.json
 npm notice Tarball Details
 npm notice name: global-input-lab
-npm notice version: 0.1.0
-npm notice filename: global-input-lab-0.1.0.tgz
-npm notice package size: 62.5 kB
-npm notice unpacked size: 284.1 kB
+npm notice version: 0.2.0
+npm notice filename: global-input-lab-0.2.0.tgz
+npm notice package size: 62.6 kB
+npm notice unpacked size: 284.8 kB
 npm notice total files: 51
 ```
 
@@ -93,10 +93,10 @@ npm notice total files: 51
 ## 3. Package Verification Checklist
 
 - [x] Package Name: `global-input-lab` (Unpublished on npm, available for ownership registration)
-- [x] Version: `0.1.0` (SemVer compliant)
+- [x] Version: `0.2.0` (SemVer compliant)
 - [x] Engine Compatibility: `node >= 22.0.0`
 - [x] Executable Binaries: `global-input-lab` and `gil` mapped to `./dist/cli/index.js`
-- [x] Modules: ESM (`"type": "module"`)
+- [x] Modules: ESM (`"type": "module"`) + Modern `"exports"` map with CJS and ESM entrypoints
 - [x] Main Entrypoint: `./dist/index.js`
 - [x] Type Declarations: `./dist/index.d.ts`
 - [x] License: `MIT`
