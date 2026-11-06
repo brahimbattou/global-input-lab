@@ -40,7 +40,7 @@ This document provides an evidence-based assessment of candidate project `global
 ### 3.1 What Is Currently Aligned & Verified
 1. **Permissive Licensing:** Complies with open-source distribution requirements (MIT License).
 2. **Technical Scope:** Solves recognized, non-trivial engineering challenges in text encoding, tokenization boundary slicing, and prompt steganography detection.
-3. **Packaging Cleanliness:** Zero runtime dependencies (`0` supply-chain dependencies); clean build outputs without bundled `node_modules` or local archives.
+3. **Packaging Cleanliness:** Zero runtime dependencies (`0` runtime third-party packages, minimizing runtime attack surfaces); clean build outputs without bundled `node_modules` or local archives.
 4. **Active Governance:** Enforced GitHub Rulesets for main branch and release tags, CodeQL static analysis, and Dependabot security monitoring.
 
 ### 3.2 What Remains Unmet or Requires Time

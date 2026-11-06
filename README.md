@@ -259,7 +259,7 @@ GlobalInputLab is developed with strict engineering rigor, comprehensive cross-p
 - **Automated Tests:** **130 automated tests** passing (0 failed, 0 skipped) across 13 specialized test suites using Node.js's native test runner (`node:test`).
 - **Cross-Platform CI Matrix:** 9 verified matrix configurations across **Ubuntu**, **Windows**, and **macOS** on **Node.js 22.x, 24.x, and 26.x** in GitHub Actions.
 - **Code Coverage (Native V8 Runner):**
-  - **Overall Project:** 72.84% line coverage, 72.72% branch coverage, 77.01% function coverage.
+  - **Overall Project:** 72.84% line coverage, 72.68% branch coverage, 77.01% function coverage.
   - **Core Algorithms (`src/core/`):**
     - `boundary-inspector.ts`: 100.00% lines, 96.55% branch, 100.00% funcs
     - `homoglyph-detector.ts`: 100.00% lines, 89.19% branch, 100.00% funcs
@@ -270,7 +270,7 @@ GlobalInputLab is developed with strict engineering rigor, comprehensive cross-p
   - **CLI Runner & Orchestration (`src/cli/`):**
     - `formatters.ts`: 95.85% lines, 82.61% branch, 100.00% funcs
     - `runner.ts`: 90.69% lines, 69.23% branch, 100.00% funcs
-- **Zero Runtime Dependencies:** Exactly 0 production dependencies in `package.json` to eliminate supply-chain vulnerabilities and maintain a minimal footprint.
+- **Zero Runtime Dependencies:** Exactly 0 production dependencies in `package.json`, significantly minimizing runtime supply-chain attack surfaces and maintaining a minimal footprint.
 - **Strict Type Safety:** 100% strict TypeScript (`tsc --noEmit`), zero `any` leaks across public API interfaces.
 
 ```bash

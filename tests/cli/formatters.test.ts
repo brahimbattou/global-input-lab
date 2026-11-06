@@ -202,3 +202,4 @@ test('ReportFormatter - formatTestRunTerminal with passed, failed, and inconclus
   assert.ok(md.includes('| FAIL | `security_adversarial` | Failing Injection | 15ms | Payload corrupted by server |'));
   assert.ok(md.includes('| INCONCLUSIVE | `emails` | Inconclusive Email | 20ms | Server returned HTTP 204 No Content |'));
 });
+

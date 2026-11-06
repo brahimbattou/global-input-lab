@@ -16,7 +16,7 @@ Packaging integrity was audited and verified via `npm pack --dry-run` following 
 1. **Clean Distribution Scope:** Only compiled build artifacts (`dist/`), documentation (`README.md`), the license (`LICENSE`), and manifest (`package.json`) are packed into the tarball.
 2. **Zero Dependency Leaks:** No `node_modules`, no test files (`tests/`), no demo files (`demo/`), and no local config or archive files (`*.zip`, `*.tgz`) are included.
 3. **Reproducibility:** The repository is 100% reproducible using `npm ci` on any clean environment without reliance on cached or pre-installed platform-specific binaries.
-4. **Supply-Chain Cleanliness:** Zero (`0`) runtime dependencies. Downstream consumers incur zero external attack surface or supply-chain risk.
+4. **Supply-Chain Cleanliness:** Zero (`0`) runtime dependencies. Downstream consumers incur no third-party runtime dependency footprint or transitive package vulnerabilities, significantly reducing runtime supply-chain attack surfaces.
 5. **Publishing Safety:** In accordance with maintainer directives, formal publication to npm requires explicit owner action and approval.
 
 ---

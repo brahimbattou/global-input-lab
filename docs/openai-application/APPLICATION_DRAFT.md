@@ -13,66 +13,69 @@
 
 ## 1. Candidate Application Field Values
 
-| Form Field | Value / Draft Content | Character Count | Notes & Instructions |
+This table corresponds directly to the official application form at [https://openai.com/form/codex-for-oss/](https://openai.com/form/codex-for-oss/):
+
+| Form Question / Field | Candidate Value / Response | Length | Instructions & Context |
 | :--- | :--- | :---: | :--- |
-| **First Name** | Brahim | 6 | Maintainer legal/preferred first name. |
-| **Last Name** | Battou | 6 | Maintainer legal/preferred last name. |
-| **ChatGPT Account Email** | `[YOUR_CHATGPT_ACCOUNT_EMAIL]` | — | **CRITICAL:** Use your actual login email for ChatGPT (where Pro with Codex will be activated). **DO NOT** use the GitHub noreply address here. |
-| **GitHub Username** | `brahimbattou` | 12 | Confirmed GitHub handle. |
-| **Public GitHub Repository URL** | `https://github.com/brahimbattou/global-input-lab` | 48 | Public open-source repository. |
-| **Maintainer Role** | Primary / Core Maintainer | 25 | Author, creator, and lead engineer. |
-| **Why the repository qualifies** *(Max 500 chars)* | *See Field Narrative 1 below* | **493 chars** | Rigorous architectural justification. |
-| **Interest in Codex Security** | Yes | — | Evaluated separately by OpenAI. |
-| **Interest in API Credits** | Yes | — | For GitHub Actions maintenance automation. |
-| **OpenAI Organization ID** | `org-[YOUR_OPENAI_ORG_ID]` | — | Found on [platform.openai.com/account/organization](https://platform.openai.com/account/organization). |
-| **How API credits will be used** *(Max 500 chars)* | *See Field Narrative 2 below* | **486 chars** | Actionable automation plan. |
-| **Additional relevant information** *(Max 500 chars)* | *See Field Narrative 3 below* | **473 chars** | Rigor, licensing, and standards. |
+| **First name** *(Required)* | Brahim | 6 | Maintainer legal/preferred first name. |
+| **Last name** *(Required)* | Battou | 6 | Maintainer legal/preferred last name. |
+| **Email** *(Required)* | `[YOUR_CHATGPT_ACCOUNT_EMAIL]` | — | **CRITICAL:** Must be the email associated with your ChatGPT account where Pro access with Codex will be provisioned. |
+| **GitHub username** *(Required)* | `brahimbattou` | 12 | Public profile visibility confirmed. |
+| **GitHub repository URL** *(Required)* | `https://github.com/brahimbattou/global-input-lab` | 48 | Public open-source repository. |
+| **Describe your role: are you a primary or core maintainer?** *(Required)* | Primary maintainer | 18 | Creator, lead architect, and primary maintainer. |
+| **Why does this repository qualify? (include GitHub stars, monthly downloads, or why it's important to the ecosystem)** *(Required)* | *See Field Narrative 1 below* | **492 chars** | Truthful Day 0 adoption with architectural & ecosystem justification (Max 500). |
+| **I'm interested in...** *(Checkboxes)* | [x] Codex Security<br>[x] API credits for my project | — | Select both capabilities to support security reviews and CI automation. |
+| **OpenAI Organization ID** *(Required for API credits)* | `org-[YOUR_OPENAI_ORG_ID]` | — | Found at [platform.openai.com/account/organization](https://platform.openai.com/account/organization). |
+| **How will you use API credits for your project?** *(Required if requesting API credits)* | *See Field Narrative 2 below* | **459 chars** | Actionable CI automation and regression testing plan (Max 500). |
+| **Anything else we should know?** *(Optional)* | *See Field Narrative 3 below* | **487 chars** | Engineering standards, testing rigor, and security disclosures (Max 500). |
 
 ---
 
 ## 2. Character-Counted Field Narratives
 
-### Field: Why the repository qualifies (Limit: 500 characters)
+### Field: Why does this repository qualify? (Limit: 500 characters)
 
 ```text
-GlobalInputLab is an open-source toolkit solving critical text integrity and security failures across global data pipelines. It provides non-destructive sanitization preserving complex scripts (Persian ZWNJ, Thai/Khmer word boundaries, Emoji ZWJ), strict raw-byte UTF-8 verification for HTTP and CLI processes, and curated UTS #39 confusable detection to prevent prompt steganography. It features 130 passing automated tests, zero runtime dependencies, and an MIT license to protect multilingual software.
+GlobalInputLab is an open-source toolkit resolving text encoding and data integrity failures in multilingual pipelines. As a newly published framework, it is at Day 0 of public adoption (pre-npm release), prioritizing architectural rigor: zero runtime dependencies, non-destructive sanitization for complex scripts (Arabic, Indic, CJK), UTF-8 stream boundary slicing, and UTS #39 defense against prompt steganography. It includes 130 automated tests and a cross-platform Node 22-26 CI matrix.
 ```
-- **Length:** 494 characters (within 500-character ceiling).
+- **Exact Length:** 492 characters (strictly under 500-character ceiling).
+- **Adoption Context:** Truthfully states Day 0 / pre-npm release status without fabricating stars or downloads.
 
 ---
 
-### Field: How API credits will be used (Limit: 500 characters)
+### Field: How will you use API credits for your project? (Limit: 500 characters)
 
 ```text
-We will use API credits to automate three essential open-source workflows: (1) An automated GitHub Actions PR reviewer that verifies submitted Unicode test vectors against Unicode Technical Standard #39 without introducing linguistic false positives; (2) An automated triage assistant for issue classification and orthographic context validation across non-Latin scripts; and (3) An automated regression test generator that synthesizes boundary edge cases for newly reported UTF-8 parsing defects.
+We will use API credits to automate three maintainer workflows: (1) A GitHub Actions CI assistant that validates proposed Unicode test vectors against UTS #39 without linguistic false positives; (2) An automated triage assistant for issue classification and orthographic context validation across non-Latin scripts; and (3) An automated regression test generator that synthesizes boundary edge cases for reported UTF-8 parsing and stream chunk slicing issues.
 ```
-- **Length:** 486 characters (within 500-character ceiling).
+- **Exact Length:** 459 characters (strictly under 500-character ceiling).
 
 ---
 
-### Field: Additional relevant information (Limit: 500 characters)
+### Field: Anything else we should know? (Limit: 500 characters)
 
 ```text
-GlobalInputLab is maintained with strict engineering discipline: automated cross-platform CI matrix across Ubuntu, Windows, and macOS on Node 22, 24, and 26; full TypeScript type safety; comprehensive coverage; and zero supply-chain bloat. Codex support will enable rapid expansion of our test datasets across underrepresented scripts, harden raw stream parsing, and assist in maintaining coordinated security disclosures for prompt injection and Trojan Source bidirectional vulnerabilities.
+GlobalInputLab is maintained with strict engineering standards: an automated CI matrix across Ubuntu, Windows, and macOS on Node 22, 24, and 26; full TypeScript type safety; 72.8% coverage; and zero runtime dependencies to minimize runtime supply-chain attack surfaces. Codex support will help expand test datasets across underrepresented scripts, harden stream parsing, and assist in maintaining security disclosures for prompt injection and Trojan Source bidirectional vulnerabilities.
 ```
-- **Length:** 473 characters (within 500-character ceiling).
+- **Exact Length:** 487 characters (strictly under 500-character ceiling).
+- **Security Context:** Accurately states that zero runtime dependencies minimizes runtime supply-chain attack surfaces without overpromising.
 
 ---
 
 ## 3. How to Retrieve Your OpenAI Organization ID
 
-1. Open your web browser and navigate to: [https://platform.openai.com/account/organization](https://platform.openai.com/account/organization)
-2. Log in with your OpenAI / ChatGPT credentials.
+1. Open your browser and navigate to: [https://platform.openai.com/account/organization](https://platform.openai.com/account/organization)
+2. Log in with the ChatGPT account specified in the application.
 3. Locate the field labeled **Organization ID**.
-4. The format is typically: `org-xxxxxxxxxxxxxxxxxxxxxxxx`
-5. Copy that string directly into the `OpenAI Organization ID` application field.
+4. The format is: `org-xxxxxxxxxxxxxxxxxxxxxxxx`
+5. Paste that string into the `OpenAI Organization ID` application field.
    *(Do NOT use API keys starting with `sk-`, and do NOT use Project IDs starting with `proj-`).*
 
 ---
 
 ## 4. Codex Security Justification
 
-GlobalInputLab handles low-level character parsing, multi-byte buffer manipulation, stream chunk recombination, and process spawning (`spawn` with `shell: false`). Codex Security access will provide automated deep-code auditing to verify that:
+GlobalInputLab handles low-level character parsing, multi-byte buffer manipulation, stream chunk recombination, and process spawning (`spawn` with `shell: false`). Codex Security access will assist in automated auditing to ensure:
 - Stream boundary decoders never encounter buffer overrun or denial-of-service vulnerabilities when handling malformed byte streams.
-- The curated UTS #39 regex lookups are free from Regular Expression Denial of Service (ReDoS).
+- Curated UTS #39 regex lookups remain free from Regular Expression Denial of Service (ReDoS).
 - Process probing logic maintains strict separation between arguments and execution environments across all operating systems.

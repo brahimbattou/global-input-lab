@@ -28,7 +28,7 @@ The repository enforces uncompromising technical standards:
 | **Code Coverage** | Comprehensive line and branch coverage report executed via native Node.js test runner (`--experimental-test-coverage`). | :white_check_mark: **Verified** |
 | **Type Safety** | 100% strict TypeScript compilation (`tsc --noEmit`), zero `any` leakage in public API surfaces. | :white_check_mark: **Verified** |
 | **Packaging Safety** | `npm pack --dry-run` verified: only `dist/`, `README.md`, and `LICENSE` are distributed. Zero test files, git internals, or sensitive files included. | :white_check_mark: **Verified** |
-| **Dependency Minimality** | Zero runtime dependencies. Reduces maintenance burden and eliminates supply-chain compromise vectors. | :white_check_mark: **Verified** |
+| **Dependency Minimality** | Zero runtime dependencies. Reduces maintenance burden and significantly minimizes third-party runtime supply-chain attack surfaces. | :white_check_mark: **Verified** |
 | **CodeQL Static Analysis** | GitHub CodeQL Default Setup active (`javascript-typescript` and `actions` query suites) on `main`, pull requests, and weekly schedules. | :white_check_mark: **Active** |
 | **Supply-Chain & Dependabot** | Dependency Graph (SBOM), Dependabot Alerts, Dependabot Security Updates, and weekly `.github/dependabot.yml` (`npm` and `github-actions`) with mandatory CI gating and manual review. | :white_check_mark: **Active** |
 | **Secret Protection** | GitHub Secret Scanning and Push Protection active on the public repository. | :white_check_mark: **Active** |

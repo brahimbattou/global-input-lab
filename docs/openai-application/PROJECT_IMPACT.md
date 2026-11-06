@@ -28,7 +28,7 @@ GlobalInputLab was engineered from first principles to provide developers with a
 | **Unicode Indexing** | JavaScript UTF-16 code units (`string.length`, surrogate halves). | **Full Code-Point Array Indexing:** Astral characters (surrogate pairs) and complex emojis never cause false negatives in keyword smuggling detection. |
 | **Response Verification** | Checks HTTP status code `200` or process exit code `0`. | **Raw-Byte Integrity Verification:** Strict `TextDecoder` fatal UTF-8 check, raw buffer byte comparison, and `inconclusive` status when servers do not echo data. |
 | **Homoglyph Detection** | Ad-hoc character replacement or overbroad lookups. | **UTS #39 Curated Security Subset (v18.0.0):** Token-span mixed-script analysis isolates genuine Cyrillic/Greek from adversarial lookalikes. |
-| **Supply Chain Safety** | Dozens of external npm transitive dependencies. | **Zero Runtime Dependencies:** Built strictly using Node.js standard libraries and TypeScript types. Zero supply-chain attack surface. |
+| **Supply Chain Safety** | Dozens of external npm transitive dependencies. | **Zero Runtime Dependencies:** Built strictly using Node.js standard libraries and TypeScript types. Significantly minimized runtime supply-chain attack surface. |
 
 ---
 
