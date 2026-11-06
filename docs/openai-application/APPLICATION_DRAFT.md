@@ -26,7 +26,7 @@ This table corresponds directly to the official application form at [https://ope
 | **Why does this repository qualify? (include GitHub stars, monthly downloads, or why it's important to the ecosystem)** *(Required)* | *See Field Narrative 1 below* | **489 chars** | Truthful Day 0 adoption, distinguishing UTS #39 confusables from invisible-character prompt injection diagnostics (Max 500). |
 | **I'm interested in...** *(Checkboxes)* | [x] Codex Security<br>[x] API credits for my project | — | Select both capabilities to support security reviews and CI automation. |
 | **OpenAI Organization ID** *(Required)* | `org-[YOUR_OPENAI_ORG_ID]` | — | **MANDATORY FIELD ON FORM:** Retrieve from [platform.openai.com/account/organization](https://platform.openai.com/account/organization). |
-| **How will you use API credits for your project?** *(Required)* | *See Field Narrative 2 below* | **489 chars** | Actionable CI automation, Unicode triage, and regression testing plan (Max 500). |
+| **How will you use API credits for your project?** *(Required)* | *See Field Narrative 2 below* | **427 chars** | Maintainer-reviewed workflows distinguishing deterministic Unicode/UTS #39 checks from AI assistance (Max 500). |
 | **Anything else we should know?** *(Optional)* | *See Field Narrative 3 below* | **487 chars** | Engineering standards, testing rigor, and security disclosures (Max 500). |
 
 ---
@@ -47,9 +47,10 @@ GlobalInputLab is an open-source toolkit resolving text integrity failures in mu
 ### Field: How will you use API credits for your project? (Limit: 500 characters)
 
 ```text
-We will use API credits to automate three maintainer workflows: (1) A GitHub Actions CI assistant that validates contributed Unicode test vectors against UTS #39 for confusables and orthographic standards without linguistic false positives; (2) An automated triage assistant for issue classification and script context validation across non-Latin alphabets; and (3) An automated regression test generator that synthesizes boundary edge cases for reported UTF-8 stream chunk slicing issues.
+We will use API credits for maintainer-reviewed workflows: summarize and classify incoming issues, analyze multilingual bug reports, and suggest regression-test cases for Unicode and UTF-8 edge conditions. Deterministic checks against pinned Unicode data and relevant UTS #39 confusable mappings will remain in code and CI; model outputs will only assist maintainers and will never make final conformance or security decisions.
 ```
-- **Exact Length:** 489 characters (strictly under 500-character ceiling).
+- **Exact Length:** 427 characters (strictly under 500-character ceiling).
+- **Standards & Governance Alignment:** Distinguishes deterministic code/CI checks from AI assistance; clarifies that UTS #39 defines confusable mappings rather than orthographic rules; maintains human-in-the-loop for all triage and test generation.
 
 ---
 
@@ -76,7 +77,7 @@ GlobalInputLab is maintained with strict engineering standards: an automated CI 
 
 ## 4. Codex Security Justification
 
-GlobalInputLab handles low-level character parsing, multi-byte buffer manipulation, stream chunk recombination, and process spawning (`spawn` with `shell: false`). Codex Security access will assist in automated auditing to ensure:
-- Stream boundary decoders never encounter buffer overrun or denial-of-service vulnerabilities when handling malformed byte streams.
-- Curated UTS #39 regex lookups remain free from Regular Expression Denial of Service (ReDoS).
-- Process probing logic maintains strict separation between arguments and execution environments across all operating systems.
+GlobalInputLab handles low-level character parsing, multi-byte buffer manipulation, stream chunk recombination, and process spawning (`spawn` with `shell: false`). Codex Security access will assist with automated security analysis and adversarial-input testing:
+- Evaluating stream boundary decoders against buffer boundary anomalies or resource exhaustion under malformed byte streams.
+- Assisting with ReDoS risk assessment and adversarial-input testing across curated UTS #39 confusable lookups and token-matching expressions.
+- Verifying that subprocess probing logic maintains strict separation between arguments and execution environments across all operating systems.
