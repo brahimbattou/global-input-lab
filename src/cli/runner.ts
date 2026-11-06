@@ -226,7 +226,7 @@ export class TestRunner {
           headers: {
             'Content-Type': 'application/json; charset=utf-8',
             'Content-Length': Buffer.byteLength(postData, 'utf8'),
-            'User-Agent': 'GlobalInputLab/0.1.0',
+            'User-Agent': 'GlobalInputLab/0.2.0',
             ...(options.headers || {}),
           },
           timeout: options.timeoutMs || 5000,
