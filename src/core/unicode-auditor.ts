@@ -318,11 +318,14 @@ export class UnicodeAuditor {
           recommendation = 'Preserve directional marks to maintain intended visual order.';
         }
 
-        // Soft Hyphen (U+00AD), Word Joiner (U+2060), and Math Operators (U+2061..U+2064):
-        if (cp === 0x00ad || cp === 0x2060 || (cp >= 0x2061 && cp <= 0x2064)) {
+        // Mongolian Vowel Separator (U+180E), Soft Hyphen (U+00AD), Word Joiner (U+2060), and Math Operators (U+2061..U+2064):
+        if (cp === 0x180e || cp === 0x00ad || cp === 0x2060 || (cp >= 0x2061 && cp <= 0x2064)) {
           severity = 'info';
           isLinguisticContext = true;
-          if (cp === 0x00ad) {
+          if (cp === 0x180e) {
+            desc = 'Mongolian vowel separator (U+180E) format character.';
+            recommendation = 'Preserve vowel separator in Mongolian text context.';
+          } else if (cp === 0x00ad) {
             desc = 'Discretionary soft hyphen used for typographical line breaking.';
             recommendation = 'Preserve soft hyphen to support responsive document typesetting.';
           } else if (cp >= 0x2061 && cp <= 0x2064) {

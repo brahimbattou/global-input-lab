@@ -68,3 +68,26 @@ test('RoundTripVerifier - accepts identical raw byte buffers', () => {
   assert.equal(result.identical, true);
 });
 
+test('RoundTripVerifier - handles URI encoding error on lone surrogate', () => {
+  const verifier = new RoundTripVerifier();
+  // Lone surrogate \uD800 causes encodeURIComponent to throw URIError
+  const malformed = 'bad_\uD800_surrogate';
+  const result = verifier.verifyUriEncoding(malformed);
+
+  assert.equal(result.identical, false);
+  assert.equal(result.bytePreserved, false);
+  assert.ok(result.diffDescription?.includes('URI decoding failed:'));
+});
+
+test('RoundTripVerifier - detects length mismatch when buffer has trailing bytes', () => {
+  const verifier = new RoundTripVerifier();
+  const bufA = Buffer.from('Hello', 'utf8');
+  const bufB = Buffer.from('Hello!', 'utf8');
+
+  const result = verifier.verify(bufA, bufB);
+  assert.equal(result.identical, false);
+  assert.equal(result.bytePreserved, false);
+  assert.equal(result.firstByteMismatchOffset, 5);
+  assert.ok(result.diffDescription?.includes('Byte mismatch at offset 5'));
+});
+

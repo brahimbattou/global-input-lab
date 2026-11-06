@@ -35,9 +35,9 @@
 ### Field: Why the repository qualifies (Limit: 500 characters)
 
 ```text
-GlobalInputLab is an open-source toolkit solving critical text integrity and security failures across global data pipelines. It provides non-destructive sanitization preserving complex scripts (Persian ZWNJ, Thai/Khmer word boundaries, Emoji ZWJ), strict raw-byte UTF-8 verification for HTTP and CLI processes, and curated UTS #39 confusable detection to prevent prompt steganography. It features 93 passing automated tests, zero runtime dependencies, and an MIT license to protect multilingual software.
+GlobalInputLab is an open-source toolkit solving critical text integrity and security failures across global data pipelines. It provides non-destructive sanitization preserving complex scripts (Persian ZWNJ, Thai/Khmer word boundaries, Emoji ZWJ), strict raw-byte UTF-8 verification for HTTP and CLI processes, and curated UTS #39 confusable detection to prevent prompt steganography. It features 130 passing automated tests, zero runtime dependencies, and an MIT license to protect multilingual software.
 ```
-- **Length:** 493 characters (within 500-character ceiling).
+- **Length:** 494 characters (within 500-character ceiling).
 
 ---
 
